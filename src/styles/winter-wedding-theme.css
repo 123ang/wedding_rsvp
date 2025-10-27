@@ -1,0 +1,618 @@
+/* 🌸 Sakura Wedding Theme - Cherry Blossom Wonderland */
+
+/* Global Sakura Background */
+body {
+  background: linear-gradient(45deg, 
+    #ffb3ba 0%, 
+    #ffc0cb 25%, 
+    #ffb3ba 50%, 
+    #ffc0cb 75%, 
+    #ffb3ba 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Removed background petals - keeping only single falling petals */
+
+@keyframes sakuraFall {
+  0% { 
+    transform: translateY(-100vh) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  10% { 
+    transform: translateY(-90vh) translateX(-15px) rotate(36deg);
+    opacity: 0.95;
+  }
+  20% { 
+    transform: translateY(-80vh) translateX(10px) rotate(72deg);
+    opacity: 0.9;
+  }
+  30% { 
+    transform: translateY(-70vh) translateX(-20px) rotate(108deg);
+    opacity: 0.85;
+  }
+  40% { 
+    transform: translateY(-60vh) translateX(15px) rotate(144deg);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translateY(-50vh) translateX(-10px) rotate(180deg);
+    opacity: 0.75;
+  }
+  60% { 
+    transform: translateY(-40vh) translateX(20px) rotate(216deg);
+    opacity: 0.7;
+  }
+  70% { 
+    transform: translateY(-30vh) translateX(-15px) rotate(252deg);
+    opacity: 0.65;
+  }
+  80% { 
+    transform: translateY(-20vh) translateX(25px) rotate(288deg);
+    opacity: 0.6;
+  }
+  90% { 
+    transform: translateY(-10vh) translateX(-5px) rotate(324deg);
+    opacity: 0.4;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(-30px) rotate(360deg); 
+    opacity: 0;
+  }
+}
+
+/* App Container with Sakura Glassmorphism */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  margin: 10px;
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 182, 193, 0.3);
+}
+
+/* Navigation with Sakura Glass Effect */
+.navigation {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 182, 193, 0.3) 50%, 
+    rgba(255, 255, 255, 0.3) 100%);
+  padding: 1rem 0;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-radius: 0 0 20px 20px;
+  margin-bottom: 20px;
+}
+
+/* Navigation Links with Winter Styling */
+.nav-links a {
+  color: #2c3e50 !important;
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-links a::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    transparent);
+  transition: left 0.5s ease;
+}
+
+.nav-links a:hover::before {
+  left: 100%;
+}
+
+.nav-links a:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 
+    0 8px 25px rgba(31, 38, 135, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: #1a365d;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.9);
+}
+
+.nav-links a.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(240, 248, 255, 0.3) 100%);
+  font-weight: 700;
+  box-shadow: 
+    0 4px 15px rgba(31, 38, 135, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: #1a365d;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+/* Hero Sections with Sakura Magic */
+.hero-section {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #2c3e50;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 182, 193, 0.3) 50%, 
+    rgba(255, 255, 255, 0.3) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  border-radius: 20px;
+  margin: 20px;
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.hero-title {
+  font-size: 2rem;
+  font-family: 'Georgia', serif;
+  margin: 0 0 1rem 0;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.8);
+  background: linear-gradient(135deg, #2c3e50, #1a365d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.8;
+  font-style: italic;
+  color: #4a5568;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+/* Content Sections with Sakura Glass */
+.content-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 182, 193, 0.3);
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Ensure wedding photo sections maintain proper order */
+.wedding-photo-section {
+  order: -2 !important; /* This ensures photos appear first (above details) */
+}
+
+/* Wedding Details with Sakura Styling */
+.wedding-details {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 182, 193, 0.3) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  border-radius: 20px;
+  padding: 1.5rem;
+  width: 100%;
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  order: -1 !important; /* Ensure it appears after photo but before RSVP */
+}
+
+.details-title {
+  font-size: 1.5rem;
+  font-family: 'Georgia', serif;
+  margin: 0 0 1.5rem 0;
+  color: #2c3e50;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #4a5568;
+  min-width: 80px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+.detail-value {
+  color: #2c3e50;
+  flex: 1;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+/* RSVP Forms with Sakura Magic */
+.rsvp-form-container {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 182, 193, 0.3) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  border-radius: 20px;
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.form-title {
+  font-size: 1.5rem;
+  font-family: 'Georgia', serif;
+  margin: 0 0 1.5rem 0;
+  color: #2c3e50;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #4a5568;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="number"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  min-height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: #2c3e50;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="email"]:focus,
+.form-group input[type="number"]:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 4px 15px rgba(31, 38, 135, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.3) 0%, 
+    rgba(240, 248, 255, 0.2) 100%);
+  color: #2c3e50;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 0.75rem 2rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  min-height: 48px;
+  backdrop-filter: blur(10px);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 4px 15px rgba(31, 38, 135, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(240, 248, 255, 0.3) 100%);
+  box-shadow: 
+    0 8px 25px rgba(31, 38, 135, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: #1a365d;
+}
+
+/* Gallery Page with Sakura Theme */
+.gallery-page {
+  padding: 1rem 0;
+  background: transparent;
+  min-height: 100vh;
+  position: relative;
+}
+
+.gallery-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 182, 193, 0.3);
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.gallery-title {
+  font-size: 2.5rem;
+  font-family: 'Georgia', serif;
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.8);
+  background: linear-gradient(135deg, #2c3e50, #1a365d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gallery-subtitle {
+  font-size: 1.2rem;
+  margin: 0 0 3rem 0;
+  color: #4a5568;
+  font-style: italic;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+/* Photo Grid with Sakura Magic */
+.photo-item {
+  position: relative;
+  border-radius: 15px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 182, 193, 0.3);
+  box-shadow: 
+    0 4px 15px rgba(255, 182, 193, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.photo-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(255, 182, 193, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.photo-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 182, 193, 0.3) 100%);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.3s ease;
+  color: #2c3e50;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.photo-item:hover .photo-overlay {
+  opacity: 1;
+}
+
+/* Mobile Responsive Winter Theme */
+@media (max-width: 767px) {
+  .app {
+    margin: 5px;
+    border-radius: 15px;
+  }
+  
+  .hero-section {
+    margin: 10px;
+    border-radius: 15px;
+  }
+  
+  .content-section {
+    border-radius: 15px;
+  }
+  
+  .wedding-details,
+  .rsvp-form-container {
+    border-radius: 15px;
+  }
+}
+
+/* Multiple Falling Petals - Sakura Shower */
+body::after {
+  content: '🌸';
+  position: fixed;
+  top: -50px;
+  left: 10%;
+  font-size: 35px;
+  z-index: 999999 !important;
+  animation: petalFall1 3s linear infinite;
+  pointer-events: none;
+}
+
+/* Add more falling petals using pseudo-elements */
+body::before {
+  content: '🌸';
+  position: fixed;
+  top: -50px;
+  left: 30%;
+  font-size: 30px;
+  z-index: 999999 !important;
+  animation: petalFall2 4s linear infinite;
+  pointer-events: none;
+}
+
+/* Add more petals using additional elements */
+.app::before {
+  content: '🌸';
+  position: fixed;
+  top: -50px;
+  left: 50%;
+  font-size: 40px;
+  z-index: 999999 !important;
+  animation: petalFall3 5s linear infinite;
+  pointer-events: none;
+}
+
+.app::after {
+  content: '🌸';
+  position: fixed;
+  top: -50px;
+  left: 70%;
+  font-size: 32px;
+  z-index: 999999 !important;
+  animation: petalFall4 3.5s linear infinite;
+  pointer-events: none;
+}
+
+/* Add even more petals using main content */
+.main-content::before {
+  content: '🌸';
+  position: fixed;
+  top: -50px;
+  left: 85%;
+  font-size: 28px;
+  z-index: 999999 !important;
+  animation: petalFall5 4.5s linear infinite;
+  pointer-events: none;
+}
+
+.main-content::after {
+  content: '🌸';
+  position: fixed;
+  top: -50px;
+  left: 5%;
+  font-size: 38px;
+  z-index: 999999 !important;
+  animation: petalFall6 3.8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes petalFall1 {
+  0% { 
+    transform: translateY(-100px) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(80px) rotate(360deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes petalFall2 {
+  0% { 
+    transform: translateY(-100px) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(-60px) rotate(-360deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes petalFall3 {
+  0% { 
+    transform: translateY(-100px) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(50px) rotate(180deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes petalFall4 {
+  0% { 
+    transform: translateY(-100px) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(-40px) rotate(-180deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes petalFall5 {
+  0% { 
+    transform: translateY(-100px) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(30px) rotate(270deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes petalFall6 {
+  0% { 
+    transform: translateY(-100px) translateX(0px) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(100vh) translateX(-20px) rotate(-270deg); 
+    opacity: 0;
+  }
+}
+
+/* Sakura Theme Animations */
+@media (prefers-reduced-motion: no-preference) {
+  .app {
+    animation: sakura-glow 8s ease-in-out infinite;
+  }
+  
+  @keyframes sakura-glow {
+    0%, 100% { 
+      box-shadow: 
+        0 8px 32px rgba(255, 182, 193, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+    50% { 
+      box-shadow: 
+        0 12px 40px rgba(255, 182, 193, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+  }
+}

@@ -1,0 +1,107 @@
+.wedding-photo-section {
+  margin: 2rem 0;
+  padding: 1rem 0;
+  order: -2; /* Ensure it appears first (above details) */
+  flex-shrink: 0; /* Prevent shrinking */
+}
+
+.photo-container {
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.photo-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.wedding-photo {
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.photo-container:hover .wedding-photo {
+  transform: scale(1.05);
+}
+
+.photo-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  color: white;
+  padding: 2rem 1.5rem 1.5rem;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.photo-container:hover .photo-overlay {
+  transform: translateY(0);
+}
+
+.photo-caption h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.photo-caption p {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .wedding-photo-section {
+    margin: 1.5rem 0;
+    padding: 0.5rem;
+  }
+  
+  .photo-container {
+    max-width: 100%;
+    border-radius: 10px;
+  }
+  
+  .wedding-photo {
+    height: 300px;
+  }
+  
+  .photo-overlay {
+    padding: 1.5rem 1rem 1rem;
+  }
+  
+  .photo-caption h3 {
+    font-size: 1.25rem;
+  }
+  
+  .photo-caption p {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .wedding-photo {
+    height: 250px;
+  }
+  
+  .photo-caption h3 {
+    font-size: 1.1rem;
+  }
+  
+  .photo-caption p {
+    font-size: 0.85rem;
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "navigation": {
+    "title": "我们的婚礼",
+    "brideWedding": "新娘婚礼",
+    "groomWedding": "新郎婚礼",
+    "photoGallery": "照片画廊",
+    "videos": "视频"
+  },
+  "hero": {
+    "brideTitle": "新娘的婚礼",
+    "brideSubtitle": "爱与喜悦的庆典",
+    "groomTitle": "新郎的婚礼",
+    "groomSubtitle": "值得纪念的一天",
+    "galleryTitle": "我们的婚礼回忆",
+    "gallerySubtitle": "庆祝爱情、欢笑和幸福永远"
+  },
+  "weddingDetails": {
+    "title": "婚礼详情",
+    "name": "姓名",
+    "date": "日期",
+    "time": "时间",
+    "venue": "场地",
+    "address": "地址",
+    "brideName": "王棓丝 (Miss Ong Pei Shi)",
+    "brideDate": "2026年1月2日（星期五）",
+    "brideTime": "晚上7时正",
+    "brideVenue": "大山脚 福临门大酒店",
+    "brideAddress": "Fu Hotel, 53 Lorong Setia Sentral, Pusat Perniagaan Setia Sentral, 14000 Bukit Mertajam, Penang",
+    "groomName": "洪劲呏 (Mr. Ang Jin Sheng)",
+    "groomDate": "2026年1月4日（星期日）",
+    "groomTime": "晚上7时正",
+    "groomVenue": "槟城 仙景楼大酒家",
+    "groomAddress": "Starview Restaurant, Jalan Dato Keramat, Penang",
+    "brideDescription": "加入我们庆祝新娘王棓丝的特殊日子，与家人和朋友一起。我们期待与您分享这个欢乐的时刻！",
+    "groomDescription": "来和我们一起庆祝新郎洪劲晟的婚礼日。这将是一个充满爱、欢笑和珍贵回忆的难忘夜晚！"
+  },
+  "rsvp": {
+    "title": "回复邀请",
+    "brideTitle": "新娘婚礼回复",
+    "groomTitle": "新郎婚礼回复",
+    "form": {
+      "name": "姓名",
+      "namePlaceholder": "请输入您的姓名",
+      "email": "邮箱地址",
+      "emailPlaceholder": "请输入您的邮箱",
+      "phone": "手机号码",
+      "phonePlaceholder": "请输入您的手机号码",
+      "attending": "您会参加吗？",
+      "attendingYes": "是的，我会参加！",
+      "attendingNo": "抱歉，我无法参加",
+      "numberOfGuests": "宾客人数",
+      "submit": "提交回复",
+      "submitting": "提交中...",
+      "success": "谢谢！您的回复已成功提交。",
+      "error": "提交回复失败，请重试。"
+    }
+  },
+  "gallery": {
+    "viewPhoto": "查看照片",
+    "photoAlt": "婚礼照片"
+  },
+  "photos": {
+    "brideAlt": "美丽的新娘照片",
+    "groomAlt": "英俊的新郎照片",
+    "coupleAlt": "美丽的夫妻照片",
+    "brideCaption": "新娘照片",
+    "groomCaption": "新郎照片", 
+    "coupleCaption": "夫妻照片",
+    "brideDescription": "捕捉到的美丽瞬间",
+    "groomDescription": "捕捉到的英俊瞬间",
+    "coupleDescription": "捕捉到的美丽瞬间"
+  },
+  "videos": {
+    "title": "我们的婚礼视频",
+    "subtitle": "分享我们珍贵的回忆和美好时光",
+    "audioNotice": "背景音乐会在播放视频时自动暂停，视频结束后自动恢复",
+    "mainVideo": {
+      "title": "婚礼精彩瞬间",
+      "description": "记录我们婚礼的珍贵时刻，与您分享这份喜悦和幸福。"
+    }
+  },
+  "language": {
+    "switch": "切换语言",
+    "chinese": "中文",
+    "english": "English"
+  }
+}

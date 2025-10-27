@@ -1,0 +1,87 @@
+{
+  "navigation": {
+    "title": "Our Wedding",
+    "brideWedding": "Bride's Wedding",
+    "groomWedding": "Groom's Wedding",
+    "photoGallery": "Photo Gallery",
+    "videos": "Videos"
+  },
+  "hero": {
+    "brideTitle": "The Bride's Wedding",
+    "brideSubtitle": "A Celebration of Love & Joy",
+    "groomTitle": "The Groom's Wedding",
+    "groomSubtitle": "A Day to Remember",
+    "galleryTitle": "Our Wedding Memories",
+    "gallerySubtitle": "Celebrating love, laughter, and happily ever after"
+  },
+  "weddingDetails": {
+    "title": "Wedding Details",
+    "name": "Name",
+    "date": "Date",
+    "time": "Time",
+    "venue": "Venue",
+    "address": "Address",
+    "brideName": "王棓丝 (Miss Ong Pei Shi)",
+    "brideDate": "2nd Jan 2026 (Friday)",
+    "brideTime": "7.00pm sharp",
+    "brideVenue": "大山脚 福临门大酒店",
+    "brideAddress": "Fu Hotel, 53 Lorong Setia Sentral, Pusat Perniagaan Setia Sentral, 14000 Bukit Mertajam, Penang",
+    "groomName": "洪劲晟 (Mr. Ang Jin Sheng)",
+    "groomDate": "4th Jan 2026 (Sunday)",
+    "groomTime": "7.00pm sharp",
+    "groomVenue": "槟城 仙景楼大酒家",
+    "groomAddress": "Starview Restaurant, Jalan Dato Keramat, Penang",
+    "brideDescription": "Join us in celebrating Miss Ong Pei Shi's special day with family and friends. We look forward to sharing this joyous occasion with you!",
+    "groomDescription": "Come celebrate Mr. Ang Jin Sheng's wedding day with us. It will be an unforgettable evening filled with love, laughter, and cherished memories!"
+  },
+  "rsvp": {
+    "title": "RSVP",
+    "brideTitle": "RSVP for Bride's Wedding",
+    "groomTitle": "RSVP for Groom's Wedding",
+    "form": {
+      "name": "Full Name",
+      "namePlaceholder": "Enter your full name",
+      "email": "Email Address",
+      "emailPlaceholder": "Enter your email",
+      "phone": "Phone Number",
+      "phonePlaceholder": "Enter your phone number",
+      "attending": "Will you be attending?",
+      "attendingYes": "Yes, I'll be there!",
+      "attendingNo": "Sorry, I can't make it",
+      "numberOfGuests": "Number of Guests",
+      "submit": "Submit RSVP",
+      "submitting": "Submitting...",
+      "success": "Thank you! Your RSVP has been submitted successfully.",
+      "error": "Failed to submit RSVP. Please try again."
+    }
+  },
+  "gallery": {
+    "viewPhoto": "View Photo",
+    "photoAlt": "Wedding Photo"
+  },
+  "photos": {
+    "brideAlt": "Beautiful bride photo",
+    "groomAlt": "Handsome groom photo", 
+    "coupleAlt": "Beautiful couple photo",
+    "brideCaption": "Bride Photo",
+    "groomCaption": "Groom Photo",
+    "coupleCaption": "Couple Photo",
+    "brideDescription": "A beautiful moment captured",
+    "groomDescription": "A handsome moment captured",
+    "coupleDescription": "A beautiful moment captured"
+  },
+  "videos": {
+    "title": "Our Wedding Videos",
+    "subtitle": "Share our precious memories and beautiful moments",
+    "audioNotice": "Background music will automatically pause when playing videos and resume when finished",
+    "mainVideo": {
+      "title": "Wedding Highlights",
+      "description": "Capturing the precious moments of our wedding day, sharing this joy and happiness with you."
+    }
+  },
+  "language": {
+    "switch": "Switch Language",
+    "chinese": "中文",
+    "english": "English"
+  }
+}

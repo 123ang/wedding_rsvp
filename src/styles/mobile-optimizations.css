@@ -1,0 +1,138 @@
+/* Mobile-specific optimizations for wedding RSVP */
+
+/* Prevent horizontal scroll */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Touch-friendly button sizes */
+button, .btn, input[type="submit"], input[type="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+}
+
+/* Improve form inputs on mobile */
+input, textarea, select {
+  font-size: 16px; /* Prevents zoom on iOS */
+  -webkit-appearance: none;
+  border-radius: 8px;
+}
+
+/* Better touch targets */
+.nav-links a,
+.radio-label,
+.photo-item {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Smooth transitions for mobile */
+* {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Prevent text selection on UI elements */
+.nav-links a,
+.lang-btn,
+.submit-btn {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Optimize images for mobile */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Improve scrolling on mobile */
+.photo-grid,
+.content-section {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better spacing for mobile */
+@media (max-width: 767px) {
+  .container,
+  .page-container,
+  .gallery-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Increase touch targets */
+  .radio-label {
+    padding: 1rem;
+    min-height: 56px;
+  }
+  
+  .nav-links a {
+    padding: 0.75rem 1rem;
+    min-height: 48px;
+  }
+  
+  /* Better form spacing */
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Optimize photo grid for mobile */
+  .photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 767px) and (orientation: landscape) {
+  .hero-section {
+    padding: 1.5rem 1rem;
+  }
+  
+  .hero-title {
+    font-size: 1.75rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+  
+  .content-section {
+    padding: 1.5rem 1rem;
+    gap: 1.5rem;
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .photo-item img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .rsvp-form-container,
+  .wedding-details {
+    background: #1a1a1a;
+    color: #ffffff;
+  }
+  
+  .form-group label {
+    color: #ffffff;
+  }
+  
+  .detail-label {
+    color: #cccccc;
+  }
+  
+  .detail-value {
+    color: #ffffff;
+  }
+}
