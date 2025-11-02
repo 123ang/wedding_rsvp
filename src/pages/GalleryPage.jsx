@@ -34,6 +34,34 @@ const GalleryPage = () => {
     { src: '/photos/18.jpg', alt: 'Wedding Photo 18' },
   ];
 
+  // Preload first few gallery images for faster initial load
+  useEffect(() => {
+    const preloadImages = (imagePaths, startIndex = 0, count = 6) => {
+      const imagesToPreload = imagePaths.slice(startIndex, startIndex + count);
+      imagesToPreload.forEach((photo) => {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = photo.src;
+        document.head.appendChild(link);
+        
+        // Also preload using Image object for better caching
+        const img = new Image();
+        img.src = photo.src;
+      });
+    };
+
+    // Preload first 6 images immediately
+    preloadImages(photos, 0, 6);
+
+    // Preload remaining images after a short delay
+    if (photos.length > 6) {
+      setTimeout(() => {
+        preloadImages(photos, 6);
+      }, 500);
+    }
+  }, []);
+
   // Intersection Observer for lazy loading
   useEffect(() => {
     const observer = new IntersectionObserver(

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAllRSVPs, updatePaymentAmount, checkAdminAuth, adminLogout } from '../services/api';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -20,24 +21,12 @@ const AdminDashboard = () => {
     fetchRSVPs();
   }, []);
 
-  const API_URL = import.meta.env.PROD 
-    ? 'https://jsang-psong-wedding.com/api' 
-    : '/api';
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch(`${API_URL}/admin/check-auth.php`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      
-      if (!data.authenticated) {
-        navigate('/admin/login');
-      } else {
-        setAdminEmail(data.email);
-      }
-    } catch (err) {
+  const checkAuth = () => {
+    const authResult = checkAdminAuth();
+    if (!authResult.success) {
       navigate('/admin/login');
+    } else {
+      setAdminEmail(authResult.email);
     }
   };
 
@@ -46,10 +35,7 @@ const AdminDashboard = () => {
       if (isRefresh) {
         setRefreshing(true);
       }
-      const response = await fetch(`${API_URL}/admin/get-rsvps.php`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
+      const data = await getAllRSVPs();
       
       if (data.success) {
         setRsvps(data.rsvps);
@@ -59,7 +45,12 @@ const AdminDashboard = () => {
         setError('Failed to load RSVPs');
       }
     } catch (err) {
-      setError('An error occurred while loading RSVPs');
+      console.error('Fetch RSVPs error:', err);
+      if (err.message === 'Unauthorized access.') {
+        navigate('/admin/login');
+      } else {
+        setError('An error occurred while loading RSVPs');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -99,17 +90,9 @@ const AdminDashboard = () => {
     document.body.removeChild(link);
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_URL}/admin/logout.php`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      navigate('/admin/login');
-    } catch (err) {
-      console.error('Logout error:', err);
-      navigate('/admin/login');
-    }
+  const handleLogout = () => {
+    adminLogout();
+    navigate('/admin/login');
   };
 
   const handlePaymentEdit = (id, type, currentPayment) => {
@@ -136,29 +119,12 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/admin/update-payment.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: id,
-          type: type,
-          payment_amount: paymentAmount
-        }),
-        credentials: 'include'
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        fetchRSVPs();
-        setEditingPayment({ id: null, type: null, value: '' });
-      } else {
-        alert('Failed to update payment');
-      }
+      await updatePaymentAmount(id, paymentAmount);
+      fetchRSVPs();
+      setEditingPayment({ id: null, type: null, value: '' });
     } catch (err) {
-      alert('An error occurred');
+      console.error('Update payment error:', err);
+      alert('An error occurred while updating payment');
     }
   };
 

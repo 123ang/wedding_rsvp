@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { adminLogin } from '../services/api';
 import './AdminLoginPage.css';
 
 const AdminLoginPage = () => {
@@ -15,29 +16,16 @@ const AdminLoginPage = () => {
     setLoading(true);
 
     try {
-      // Use /api in development (Vite proxy) or full URL in production
-      const API_URL = import.meta.env.PROD 
-        ? 'https://jsang-psong-wedding.com/api' 
-        : '/api'; // Vite proxy will handle this
+      const data = await adminLogin(email, password);
       
-      const response = await fetch(`${API_URL}/admin/login.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include'
-      });
-
-      const data = await response.json();
-
       if (data.success) {
         navigate('/admin/dashboard');
       } else {
         setError(data.message || 'Login failed');
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      console.error('Login error:', err);
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
