@@ -83,5 +83,9 @@
     "switch": "Switch Language",
     "chinese": "中文",
     "english": "English"
+  },
+  "downloads": {
+    "brideInvitation": "Download Bride Invitation (PDF)",
+    "groomInvitation": "Download Groom Invitation (PDF)"
   }
 }

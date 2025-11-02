@@ -31,6 +31,12 @@ const BridePageSimple = () => {
             details={brideDetails} 
           />
           
+          <div className="invitation-section">
+            <a className="download-button" href="/invitation_pdf/bride_invitation.pdf" download>
+              下载新娘请柬（PDF）
+            </a>
+          </div>
+          
           <RSVPFormSimple 
             onSubmit={handleSubmit}
             title="新娘婚礼回复"

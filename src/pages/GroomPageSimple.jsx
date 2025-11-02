@@ -31,6 +31,12 @@ const GroomPageSimple = () => {
             details={groomDetails} 
           />
           
+          <div className="invitation-section">
+            <a className="download-button" href="/invitation_pdf/groom_invitation.pdf" download>
+              下载新郎请柬（PDF）
+            </a>
+          </div>
+          
           <RSVPFormSimple 
             onSubmit={handleSubmit}
             title="新郎婚礼回复"

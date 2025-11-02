@@ -83,5 +83,9 @@
     "switch": "切换语言",
     "chinese": "中文",
     "english": "English"
+  },
+  "downloads": {
+    "brideInvitation": "下载新娘请柬（PDF）",
+    "groomInvitation": "下载新郎请柬（PDF）"
   }
 }

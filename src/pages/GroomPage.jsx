@@ -37,6 +37,12 @@ const GroomPage = () => {
             details={groomDetails} 
           />
           
+          <div className="invitation-section">
+            <a className="download-button" href="/invitation_pdf/groom_invitation.pdf" download>
+              {t('downloads.groomInvitation')}
+            </a>
+          </div>
+          
           <RSVPForm 
             onSubmit={handleSubmit}
             title={t('rsvp.groomTitle')}

@@ -49,6 +49,30 @@
   width: 100%;
 }
 
+.invitation-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.download-button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #ff6b9d, #C44569);
+  border-color: #C44569;
+  box-shadow: 0 4px 15px rgba(196, 69, 105, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.download-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(196, 69, 105, 0.4);
+}
+
 /* Mobile-first responsive design */
 @media (min-width: 480px) {
   .hero-section {
