@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import NavigationWithLang from './components/NavigationWithLang';
 import BridePageSimple from './pages/BridePageSimple';
 import GroomPageSimple from './pages/GroomPageSimple';
@@ -15,7 +15,8 @@ function AppSimple() {
           <NavigationWithLang />
           <main className="main-content">
             <Routes>
-              <Route path="/" element={<BridePageSimple />} />
+              <Route path="/" element={<Navigate to="/bride" replace />} />
+              <Route path="/bride" element={<BridePageSimple />} />
               <Route path="/groom" element={<GroomPageSimple />} />
               <Route path="/gallery" element={<GalleryPageSimple />} />
             </Routes>

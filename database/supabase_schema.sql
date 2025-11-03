@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS rsvps (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
+    organization VARCHAR(255),
     attending BOOLEAN NOT NULL,
     number_of_guests INTEGER DEFAULT 1,
     wedding_type VARCHAR(10) NOT NULL CHECK (wedding_type IN ('bride', 'groom')),

@@ -17,8 +17,8 @@ const NavigationWithLang = () => {
         <ul className="nav-links">
           <li>
             <Link 
-              to="/" 
-              className={location.pathname === '/' ? 'active' : ''}
+              to="/bride" 
+              className={location.pathname === '/bride' ? 'active' : ''}
             >
               {t('navigation.brideWedding')}
             </Link>
@@ -48,21 +48,23 @@ const NavigationWithLang = () => {
                    </Link>
                  </li>
         </ul>
-        <div className="language-switcher">
-          <button
-            className={`lang-btn ${i18n.language === 'zh-CN' ? 'active' : ''}`}
-            onClick={() => changeLanguage('zh-CN')}
-            title="中文"
-          >
-            中文
-          </button>
-          <button
-            className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
-            onClick={() => changeLanguage('en')}
-            title="English"
-          >
-            EN
-          </button>
+        <div className="nav-right">
+          <div className="language-switcher">
+            <button
+              className={`lang-btn ${i18n.language === 'zh-CN' ? 'active' : ''}`}
+              onClick={() => changeLanguage('zh-CN')}
+              title="中文"
+            >
+              中文
+            </button>
+            <button
+              className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
+              onClick={() => changeLanguage('en')}
+              title="English"
+            >
+              EN
+            </button>
+          </div>
         </div>
       </div>
     </nav>

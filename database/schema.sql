@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS rsvps (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
+    organization VARCHAR(255) NULL,
     attending BOOLEAN NOT NULL,
     number_of_guests INT DEFAULT 1,
     wedding_type ENUM('bride', 'groom') NOT NULL,

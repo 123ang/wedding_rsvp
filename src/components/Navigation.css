@@ -55,6 +55,31 @@
   font-weight: 600;
 }
 
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.domain-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.domain-name:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
 /* Mobile-first responsive design */
 @media (min-width: 480px) {
   .nav-container {
@@ -101,10 +126,25 @@
   
   .nav-links {
     order: 1;
+    width: 100%;
+  }
+  
+  .nav-right {
+    order: 2;
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .domain-name {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    text-align: center;
   }
   
   .language-switcher {
-    order: 2;
+    margin: 0 auto;
   }
 }
 

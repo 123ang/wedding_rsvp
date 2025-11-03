@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import './RSVPForm.css';
 
-const RSVPForm = ({ onSubmit, title }) => {
+const RSVPForm = ({ onSubmit, title, deadline, showOrganization = false }) => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
@@ -10,6 +10,7 @@ const RSVPForm = ({ onSubmit, title }) => {
     phone: '',
     attending: true,
     number_of_guests: 1,
+    organization: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -46,6 +47,7 @@ const RSVPForm = ({ onSubmit, title }) => {
         phone: '',
         attending: true,
         number_of_guests: 1,
+        organization: '',
       });
     } catch (error) {
       console.error('Form submission error:', error);
@@ -61,6 +63,10 @@ const RSVPForm = ({ onSubmit, title }) => {
   return (
     <div className="rsvp-form-container">
       <h3 className="form-title">{title || t('rsvp.title')}</h3>
+      <div className="rsvp-deadline">
+        <span className="deadline-icon">📅</span>
+        <span className="deadline-text">{deadline || t('rsvp.deadline')}</span>
+      </div>
       <form onSubmit={handleSubmit} className="rsvp-form">
         <div className="form-group">
           <label htmlFor="name">{t('rsvp.form.name')} *</label>
@@ -76,29 +82,47 @@ const RSVPForm = ({ onSubmit, title }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="email">{t('rsvp.form.email')} *</label>
+          <label htmlFor="email">{t('rsvp.form.email')}</label>
           <input
             type="email"
             id="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            required
             placeholder={t('rsvp.form.emailPlaceholder')}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="phone">{t('rsvp.form.phone')}</label>
+          <label htmlFor="phone">{t('rsvp.form.phone')} *</label>
           <input
             type="tel"
             id="phone"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
+            required
             placeholder={t('rsvp.form.phonePlaceholder')}
           />
         </div>
+
+        {showOrganization && (
+          <div className="form-group">
+            <label htmlFor="organization">{t('rsvp.form.organization')}</label>
+            <select
+              id="organization"
+              name="organization"
+              value={formData.organization}
+              onChange={handleChange}
+              className="form-select"
+            >
+              <option value="">{t('rsvp.form.organizationPlaceholder')}</option>
+              <option value="Lions Club">{t('rsvp.form.organizationOptions.lionsClub')}</option>
+              <option value="Zhong Zheng">{t('rsvp.form.organizationOptions.zhongZheng')}</option>
+              <option value="Other">{t('rsvp.form.organizationOptions.other')}</option>
+            </select>
+          </div>
+        )}
 
         <div className="form-group">
           <label>{t('rsvp.form.attending')} *</label>

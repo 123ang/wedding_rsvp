@@ -14,26 +14,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate required fields
     if (
         !empty($data->name) &&
-        !empty($data->email) &&
+        !empty($data->phone) &&
         isset($data->attending) &&
         !empty($data->number_of_guests)
     ) {
         $database = new Database();
         $db = $database->getConnection();
 
-        // Check if email already exists for this wedding type
-        $checkQuery = "SELECT id FROM rsvps WHERE email = :email AND wedding_type = :wedding_type";
+        // Check if phone already exists for this wedding type
+        $checkQuery = "SELECT id FROM rsvps WHERE phone = :phone AND wedding_type = :wedding_type";
         $checkStmt = $db->prepare($checkQuery);
-        $email = htmlspecialchars(strip_tags($data->email));
+        $phone = htmlspecialchars(strip_tags($data->phone));
         $wedding_type = 'bride';
-        $checkStmt->bindParam(":email", $email);
+        $checkStmt->bindParam(":phone", $phone);
         $checkStmt->bindParam(":wedding_type", $wedding_type);
         $checkStmt->execute();
         
         if ($checkStmt->rowCount() > 0) {
             http_response_code(409); // Conflict
             echo json_encode(array(
-                "message" => "This email has already submitted an RSVP for the bride's wedding.",
+                "message" => "This phone number has already submitted an RSVP for the bride's wedding.",
                 "success" => false
             ));
             exit;
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Sanitize data
         $name = htmlspecialchars(strip_tags($data->name));
-        $phone = isset($data->phone) ? htmlspecialchars(strip_tags($data->phone)) : null;
+        $email = isset($data->email) && !empty($data->email) ? htmlspecialchars(strip_tags($data->email)) : null;
         $attending = (bool)$data->attending;
         $number_of_guests = (int)$data->number_of_guests;
 

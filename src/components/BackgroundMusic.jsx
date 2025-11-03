@@ -53,22 +53,75 @@ const BackgroundMusic = forwardRef((props, ref) => {
     }
   }, [volume, isMuted]);
 
-  // Autoplay functionality
+  // Autoplay functionality - start muted to bypass browser restrictions
   useEffect(() => {
     const audio = document.getElementById('background-music');
     if (audio && !hasUserInteracted) {
-      // Try to autoplay after a short delay
+      let unmuteTimer = null;
+      let hasAttemptedAutoplay = false;
+      
+      // Start with audio muted to allow autoplay
+      audio.muted = true;
+      setIsMuted(true);
+      
+      // Function to attempt autoplay
+      const attemptAutoplay = () => {
+        if (hasAttemptedAutoplay && !audio.paused) return;
+        if (!audio.paused) return; // Already playing
+        
+        // Only attempt if audio has some data loaded
+        if (audio.readyState >= 1) {
+          hasAttemptedAutoplay = true;
+          audio.play().then(() => {
+            setIsPlaying(true);
+            console.log('Music autoplay started (muted)');
+            
+            // Unmute after a short delay
+            unmuteTimer = setTimeout(() => {
+              audio.muted = false;
+              setIsMuted(false);
+              console.log('Music unmuted');
+            }, 100); // Unmute after 0.1 seconds
+          }).catch(error => {
+            console.log('Autoplay prevented by browser:', error);
+            hasAttemptedAutoplay = false; // Allow retry
+            // If even muted autoplay fails, keep it muted and wait for user interaction
+          });
+        }
+      };
+      
+      // Try autoplay immediately
+      if (audio.readyState >= 1) {
+        attemptAutoplay();
+      }
+      
+      // Try autoplay after short delay
       const autoplayTimer = setTimeout(() => {
-        audio.play().then(() => {
-          setIsPlaying(true);
-          console.log('Music autoplay started');
-        }).catch(error => {
-          console.log('Autoplay prevented by browser:', error);
-          // Show a subtle hint that user needs to interact
-        });
-      }, 1000); // 1 second delay
+        attemptAutoplay();
+      }, 100); // 0.1 second delay
+      
+      // Also try when audio is ready
+      const handleCanPlay = () => {
+        if (!hasUserInteracted && audio.paused) {
+          attemptAutoplay();
+        }
+      };
+      
+      audio.addEventListener('canplay', handleCanPlay);
+      audio.addEventListener('loadeddata', handleCanPlay);
+      audio.addEventListener('loadedmetadata', handleCanPlay);
+      audio.addEventListener('canplaythrough', handleCanPlay);
 
-      return () => clearTimeout(autoplayTimer);
+      return () => {
+        clearTimeout(autoplayTimer);
+        if (unmuteTimer) {
+          clearTimeout(unmuteTimer);
+        }
+        audio.removeEventListener('canplay', handleCanPlay);
+        audio.removeEventListener('loadeddata', handleCanPlay);
+        audio.removeEventListener('loadedmetadata', handleCanPlay);
+        audio.removeEventListener('canplaythrough', handleCanPlay);
+      };
     }
   }, [hasUserInteracted]);
 
@@ -157,7 +210,7 @@ const BackgroundMusic = forwardRef((props, ref) => {
         src={musicSources[currentTrack]}
         onEnded={handleEnded}
         loop={false}
-        preload="metadata"
+        preload="auto"
       />
       
       <div className="music-controls">

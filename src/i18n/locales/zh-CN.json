@@ -26,18 +26,20 @@
     "brideTime": "晚上7时正",
     "brideVenue": "大山脚 福临门大酒店",
     "brideAddress": "Fu Hotel, 53 Lorong Setia Sentral, Pusat Perniagaan Setia Sentral, 14000 Bukit Mertajam, Penang",
-    "groomName": "洪劲呏 (Mr. Ang Jin Sheng)",
+    "groomName": "洪劲呏 (Dr. Ang Jin Sheng)",
     "groomDate": "2026年1月4日（星期日）",
     "groomTime": "晚上7时正",
     "groomVenue": "槟城 仙景楼大酒家",
     "groomAddress": "Starview Restaurant, Jalan Dato Keramat, Penang",
     "brideDescription": "加入我们庆祝新娘王棓丝的特殊日子，与家人和朋友一起。我们期待与您分享这个欢乐的时刻！",
-    "groomDescription": "来和我们一起庆祝新郎洪劲晟的婚礼日。这将是一个充满爱、欢笑和珍贵回忆的难忘夜晚！"
+    "groomDescription": "来和我们一起庆祝新郎洪劲呏的婚礼日。这将是一个充满爱、欢笑和珍贵回忆的难忘夜晚！"
   },
   "rsvp": {
     "title": "回复邀请",
     "brideTitle": "新娘婚礼回复",
     "groomTitle": "新郎婚礼回复",
+    "deadline": "请于11月30日前回复",
+    "groomDeadline": "请于12月15日前回复",
     "form": {
       "name": "姓名",
       "namePlaceholder": "请输入您的姓名",
@@ -49,6 +51,13 @@
       "attendingYes": "是的，我会参加！",
       "attendingNo": "抱歉，我无法参加",
       "numberOfGuests": "宾客人数",
+      "organization": "社团/公会",
+      "organizationPlaceholder": "选择社团/公会",
+      "organizationOptions": {
+        "lionsClub": "Lions Club",
+        "zhongZheng": "Zhong Zheng",
+        "other": "其他"
+      },
       "submit": "提交回复",
       "submitting": "提交中...",
       "success": "谢谢！您的回复已成功提交。",

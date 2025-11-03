@@ -26,18 +26,20 @@
     "brideTime": "7.00pm sharp",
     "brideVenue": "大山脚 福临门大酒店",
     "brideAddress": "Fu Hotel, 53 Lorong Setia Sentral, Pusat Perniagaan Setia Sentral, 14000 Bukit Mertajam, Penang",
-    "groomName": "洪劲晟 (Mr. Ang Jin Sheng)",
+    "groomName": "洪劲呏 (Dr. Ang Jin Sheng)",
     "groomDate": "4th Jan 2026 (Sunday)",
     "groomTime": "7.00pm sharp",
     "groomVenue": "槟城 仙景楼大酒家",
     "groomAddress": "Starview Restaurant, Jalan Dato Keramat, Penang",
     "brideDescription": "Join us in celebrating Miss Ong Pei Shi's special day with family and friends. We look forward to sharing this joyous occasion with you!",
-    "groomDescription": "Come celebrate Mr. Ang Jin Sheng's wedding day with us. It will be an unforgettable evening filled with love, laughter, and cherished memories!"
+    "groomDescription": "Come celebrate Dr. Ang Jin Sheng's wedding day with us. It will be an unforgettable evening filled with love, laughter, and cherished memories!"
   },
   "rsvp": {
     "title": "RSVP",
     "brideTitle": "RSVP for Bride's Wedding",
     "groomTitle": "RSVP for Groom's Wedding",
+    "deadline": "Please RSVP before 30th of November",
+    "groomDeadline": "Please RSVP before 15th of December",
     "form": {
       "name": "Full Name",
       "namePlaceholder": "Enter your full name",
@@ -49,6 +51,13 @@
       "attendingYes": "Yes, I'll be there!",
       "attendingNo": "Sorry, I can't make it",
       "numberOfGuests": "Number of Guests",
+      "organization": "Organization / Business",
+      "organizationPlaceholder": "Select organization",
+      "organizationOptions": {
+        "lionsClub": "Lions Club",
+        "zhongZheng": "Zhong Zheng",
+        "other": "Other"
+      },
       "submit": "Submit RSVP",
       "submitting": "Submitting...",
       "success": "Thank you! Your RSVP has been submitted successfully.",

@@ -15,8 +15,8 @@ const NavigationSimple = () => {
         <ul className="nav-links">
           <li>
             <Link 
-              to="/" 
-              className={location.pathname === '/' ? 'active' : ''}
+              to="/bride" 
+              className={location.pathname === '/bride' ? 'active' : ''}
             >
               新娘婚礼
             </Link>

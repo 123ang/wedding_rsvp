@@ -46,6 +46,8 @@ const GroomPage = () => {
           <RSVPForm 
             onSubmit={handleSubmit}
             title={t('rsvp.groomTitle')}
+            deadline={t('rsvp.groomDeadline')}
+            showOrganization={true}
           />
         </div>
       </div>

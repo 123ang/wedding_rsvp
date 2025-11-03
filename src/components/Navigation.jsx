@@ -17,8 +17,8 @@ const Navigation = () => {
         <ul className="nav-links">
           <li>
             <Link 
-              to="/" 
-              className={location.pathname === '/' ? 'active' : ''}
+              to="/bride" 
+              className={location.pathname === '/bride' ? 'active' : ''}
             >
               {t('navigation.brideWedding')}
             </Link>

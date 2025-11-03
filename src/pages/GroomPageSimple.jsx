@@ -40,6 +40,7 @@ const GroomPageSimple = () => {
           <RSVPFormSimple 
             onSubmit={handleSubmit}
             title="新郎婚礼回复"
+            showOrganization={true}
           />
         </div>
       </div>

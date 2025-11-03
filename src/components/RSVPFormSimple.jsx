@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import './RSVPForm.css';
 
-const RSVPFormSimple = ({ onSubmit, title }) => {
+const RSVPFormSimple = ({ onSubmit, title, showOrganization = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     attending: true,
     number_of_guests: 1,
+    organization: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -44,6 +45,7 @@ const RSVPFormSimple = ({ onSubmit, title }) => {
         phone: '',
         attending: true,
         number_of_guests: 1,
+        organization: '',
       });
     } catch (error) {
       console.error('Form submission error:', error);
@@ -59,6 +61,10 @@ const RSVPFormSimple = ({ onSubmit, title }) => {
   return (
     <div className="rsvp-form-container">
       <h3 className="form-title">{title || '回复邀请'}</h3>
+      <div className="rsvp-deadline">
+        <span className="deadline-icon">📅</span>
+        <span className="deadline-text">请于11月30日前回复</span>
+      </div>
       <form onSubmit={handleSubmit} className="rsvp-form">
         <div className="form-group">
           <label htmlFor="name">姓名 *</label>
@@ -74,29 +80,47 @@ const RSVPFormSimple = ({ onSubmit, title }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="email">邮箱地址 *</label>
+          <label htmlFor="email">邮箱地址</label>
           <input
             type="email"
             id="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            required
             placeholder="请输入您的邮箱"
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="phone">手机号码</label>
+          <label htmlFor="phone">手机号码 *</label>
           <input
             type="tel"
             id="phone"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
+            required
             placeholder="请输入您的手机号码"
           />
         </div>
+
+        {showOrganization && (
+          <div className="form-group">
+            <label htmlFor="organization">社团/公会</label>
+            <select
+              id="organization"
+              name="organization"
+              value={formData.organization}
+              onChange={handleChange}
+              className="form-select"
+            >
+              <option value="">选择社团/公会</option>
+              <option value="Lions Club">Lions Club</option>
+              <option value="Zhong Zheng">Zhong Zheng</option>
+              <option value="Other">其他</option>
+            </select>
+          </div>
+        )}
 
         <div className="form-group">
           <label>您会参加吗？ *</label>
