@@ -17,6 +17,11 @@ const GroomPage = () => {
     description: t('weddingDetails.groomDescription')
   };
 
+  const groomMapUrl = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.0308781434446!2d100.31711257676385!3d5.412268094566927!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x304ac3b8ddc1342b%3A0xd6c5275c4a71cf6c!2sStarview%20Restaurant!5e0!3m2!1sen!2smy!4v1762150890792!5m2!1sen!2smy";
+  const groomContact = "01116473648";
+  const groomWazeUrl = "https://waze.com/ul?ll=5.412268,100.317112&navigate=yes&z=10";
+  const groomGoogleMapsUrl = "https://maps.google.com/?q=5.412268,100.317112";
+
   const handleSubmit = async (formData) => {
     return await submitGroomRSVP(formData);
   };
@@ -34,7 +39,11 @@ const GroomPage = () => {
           
           <WeddingDetails 
             title={t('weddingDetails.title')} 
-            details={groomDetails} 
+            details={groomDetails}
+            mapUrl={groomMapUrl}
+            contact={groomContact}
+            wazeUrl={groomWazeUrl}
+            googleMapsUrl={groomGoogleMapsUrl}
           />
           
           <div className="invitation-section">

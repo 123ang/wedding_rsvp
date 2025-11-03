@@ -108,3 +108,137 @@
   }
 }
 
+/* WhatsApp icon inline styling */
+.whatsapp-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+  width: 32px;
+  height: 32px;
+  background: #25D366;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.whatsapp-icon-link:hover {
+  background: #128C7E;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+}
+
+.whatsapp-icon-inline {
+  width: 18px;
+  height: 18px;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Map container styling */
+.map-container {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.map-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 75%; /* 4:3 aspect ratio */
+  height: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.map-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+
+@media (min-width: 480px) {
+  .map-wrapper {
+    padding-bottom: 60%; /* Adjust for larger screens */
+  }
+}
+
+@media (min-width: 768px) {
+  .map-wrapper {
+    padding-bottom: 50%;
+  }
+}
+
+/* Map action buttons */
+.map-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.map-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  border: 2px solid;
+  flex: 1;
+  min-width: 150px;
+  justify-content: center;
+}
+
+.map-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.waze-btn {
+  background: #f0f9ff;
+  color: #00BFFF;
+  border-color: #00BFFF;
+}
+
+.waze-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #0284c7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 191, 255, 0.3);
+}
+
+.gmaps-btn {
+  background: #fef2f2;
+  color: #EA4335;
+  border-color: #EA4335;
+}
+
+.gmaps-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(234, 67, 53, 0.3);
+}
+
+@media (min-width: 768px) {
+  .map-actions {
+    justify-content: flex-start;
+  }
+  
+  .map-action-btn {
+    flex: 0 1 auto;
+  }
+}
+

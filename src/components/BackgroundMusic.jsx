@@ -82,10 +82,10 @@ const BackgroundMusic = forwardRef((props, ref) => {
               setIsMuted(false);
               console.log('Music unmuted');
             }, 100); // Unmute after 0.1 seconds
-          }).catch(error => {
-            console.log('Autoplay prevented by browser:', error);
+          }).catch(() => {
+            // Autoplay was prevented - this is normal browser behavior
+            // Music will start when user interacts with the page
             hasAttemptedAutoplay = false; // Allow retry
-            // If even muted autoplay fails, keep it muted and wait for user interaction
           });
         }
       };

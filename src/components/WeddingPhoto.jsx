@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
@@ -20,6 +20,23 @@ const WeddingPhoto = ({ type = 'bride', className = '' }) => {
         return '/photos/couple/couple-main.jpg';
     }
   };
+
+  // Preload the photo for this specific page when component mounts
+  useEffect(() => {
+    const photoPath = getPhotoPath();
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = photoPath;
+    document.head.appendChild(link);
+
+    // Cleanup on unmount
+    return () => {
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
+    };
+  }, [type]);
 
   const getAltText = () => {
     switch (type) {
