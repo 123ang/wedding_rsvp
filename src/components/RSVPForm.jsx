@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import './RSVPForm.css';
 
-const RSVPForm = ({ onSubmit, title, deadline, showOrganization = false }) => {
-  const { t } = useTranslation();
+const RSVPForm = ({ onSubmit, title, deadline, showOrganization = false, organizationOptions }) => {
+  const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -117,9 +117,25 @@ const RSVPForm = ({ onSubmit, title, deadline, showOrganization = false }) => {
               className="form-select"
             >
               <option value="">{t('rsvp.form.organizationPlaceholder')}</option>
-              <option value="Lions Club">{t('rsvp.form.organizationOptions.lionsClub')}</option>
-              <option value="Zhong Zheng">{t('rsvp.form.organizationOptions.zhongZheng')}</option>
-              <option value="Other">{t('rsvp.form.organizationOptions.other')}</option>
+              {Array.isArray(organizationOptions) && organizationOptions.length > 0 && (
+                organizationOptions.map((opt) => {
+                  const isZh = (i18n && i18n.language || '').startsWith('zh');
+                  let label = '';
+                  let value = '';
+                  if (typeof opt === 'string') {
+                    label = opt;
+                    value = opt;
+                  } else if (opt && typeof opt === 'object') {
+                    const en = opt.en || '';
+                    const zh = opt.zh || '';
+                    label = isZh ? (zh || en) : (en || zh);
+                    value = opt.code || en || zh || '';
+                  }
+                  return (
+                    <option key={value} value={value}>{label}</option>
+                  );
+                })
+              )}
             </select>
           </div>
         )}

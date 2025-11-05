@@ -296,15 +296,15 @@ const AdminDashboard = () => {
             ) : (
               filteredRsvps.map((rsvp) => (
                 <tr key={`${rsvp.type}-${rsvp.id}`}>
-                  <td>{rsvp.name}</td>
-                  <td>{rsvp.email}</td>
-                  <td>
+                  <td data-label="Name">{rsvp.name}</td>
+                  <td data-label="Email">{rsvp.email}</td>
+                  <td data-label="Attending">
                     <span className={`attending-badge ${rsvp.attending ? 'yes' : 'no'}`}>
                       {rsvp.attending ? 'Yes' : 'No'}
                     </span>
                   </td>
-                  <td>{rsvp.number_of_guests}</td>
-                  <td>
+                  <td data-label="Guests">{rsvp.number_of_guests}</td>
+                  <td data-label="Payment">
                     {editingPayment.id === rsvp.id && editingPayment.type === rsvp.type ? (
                       <div className="payment-edit-cell">
                         <input

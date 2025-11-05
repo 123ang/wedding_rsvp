@@ -5,6 +5,11 @@ import 'yet-another-react-lightbox/styles.css';
 import './GalleryPage.css';
 
 const GalleryPage = () => {
+  // Disable sakura petals while on gallery
+  useEffect(() => {
+    document.body.classList.add('no-petals');
+    return () => document.body.classList.remove('no-petals');
+  }, []);
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);

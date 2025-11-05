@@ -1,4 +1,220 @@
 /* Background Music Controls - Seamlessly Blended Footer */
+
+/* Envelope Opening Animation */
+.music-start-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #ffb3ba 0%, #ffc0cb 50%, #ffb3ba 100%);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.music-start-prompt {
+  position: relative;
+  width: 400px;
+  height: 280px;
+  perspective: 1000px;
+}
+
+/* Envelope container */
+.envelope {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Envelope back */
+.envelope-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #fff 0%, #ffeef0 100%);
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border: 2px solid #ffb3ba;
+}
+
+/* Envelope flap (top part that opens) */
+.envelope-flap {
+  position: absolute;
+  width: 100%;
+  height: 50%;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #ffb3ba 0%, #ffc0cb 100%);
+  border-radius: 10px 10px 0 0;
+  transform-origin: top;
+  transition: transform 0.6s ease-out;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  border: 2px solid #ff9aa2;
+  border-bottom: none;
+  z-index: 3;
+}
+
+.envelope-flap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 200px solid transparent;
+  border-right: 200px solid transparent;
+  border-top: 140px solid #ffb3ba;
+}
+
+/* Card inside envelope */
+.envelope-card {
+  position: absolute;
+  width: 90%;
+  height: 85%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+  padding: 20px;
+}
+
+.music-icon {
+  font-size: 60px;
+  margin-bottom: 15px;
+  animation: musicPulse 2s ease-in-out infinite;
+}
+
+@keyframes musicPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.music-prompt-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  font-family: 'Georgia', serif;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.envelope-instruction {
+  font-size: 14px;
+  color: #666;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+/* Hover effect - slight flap lift */
+.music-start-overlay:hover .envelope-flap {
+  transform: rotateX(-15deg);
+}
+
+/* Opening animation when clicked */
+.music-start-overlay.opening {
+  animation: fadeOut 1s ease-out forwards;
+  animation-delay: 0.6s;
+}
+
+.music-start-overlay.opening .envelope-flap {
+  animation: openFlap 0.8s ease-out forwards;
+}
+
+.music-start-overlay.opening .envelope-card {
+  animation: slideCardUp 0.8s ease-out forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes openFlap {
+  0% { transform: rotateX(0deg); }
+  100% { transform: rotateX(-180deg); }
+}
+
+@keyframes slideCardUp {
+  0% { 
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+  100% { 
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { 
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .music-start-prompt {
+    width: 90%;
+    max-width: 350px;
+    height: 250px;
+  }
+  
+  .envelope-flap::before {
+    border-left: 175px solid transparent;
+    border-right: 175px solid transparent;
+    border-top: 125px solid #ffb3ba;
+  }
+  
+  .music-icon {
+    font-size: 50px;
+  }
+  
+  .music-prompt-text {
+    font-size: 16px;
+  }
+  
+  .envelope-instruction {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .music-start-prompt {
+    width: 85%;
+    max-width: 300px;
+    height: 220px;
+  }
+  
+  .envelope-flap::before {
+    border-left: 150px solid transparent;
+    border-right: 150px solid transparent;
+    border-top: 110px solid #ffb3ba;
+  }
+  
+  .music-icon {
+    font-size: 45px;
+  }
+  
+  .music-prompt-text {
+    font-size: 15px;
+  }
+}
+
 .background-music {
   position: fixed;
   bottom: 0;
@@ -86,6 +302,23 @@
 
 .music-btn.muted {
   background: rgba(255, 0, 0, 0.2);
+}
+
+.music-btn.needs-unmute {
+  background: rgba(255, 193, 7, 0.3);
+  animation: attention-pulse 2s ease-in-out infinite;
+  border-color: rgba(255, 193, 7, 0.5);
+}
+
+@keyframes attention-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+  }
+  50% { 
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(255, 193, 7, 0.5);
+  }
 }
 
 @keyframes pulse {

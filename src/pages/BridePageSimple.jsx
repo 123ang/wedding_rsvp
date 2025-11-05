@@ -14,7 +14,7 @@ const BridePageSimple = () => {
   };
 
   const brideMapUrl = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3972.4066597824694!2d100.419564!3d5.354750399999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x304ac7ceedd3b407%3A0xd5679317fb5f8203!2sFu%20Hotel!5e0!3m2!1sen!2smy!4v1762150837964!5m2!1sen!2smy";
-  const brideContact = "0174907632";
+  const brideContact = "+60174907632";
   const brideWazeUrl = "https://waze.com/ul?ll=5.354750,100.419564&navigate=yes&z=10";
   const brideGoogleMapsUrl = "https://maps.google.com/?q=5.354750,100.419564";
 

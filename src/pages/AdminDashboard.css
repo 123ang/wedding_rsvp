@@ -31,6 +31,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .refresh-btn {
@@ -455,5 +456,78 @@
 
   .admin-rsvp-table {
     min-width: 600px;
+  }
+}
+
+/* Extra-small devices: convert table to card layout */
+@media (max-width: 480px) {
+  .admin-dashboard-header {
+    padding: 15px;
+  }
+
+  .admin-tabs {
+    flex-direction: column;
+  }
+
+  .admin-summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-rsvp-table-container {
+    padding: 15px;
+  }
+
+  .admin-rsvp-table thead {
+    display: none;
+  }
+
+  .admin-rsvp-table,
+  .admin-rsvp-table tbody,
+  .admin-rsvp-table tr,
+  .admin-rsvp-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-rsvp-table tr {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+  }
+
+  .admin-rsvp-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border: none;
+  }
+
+  .admin-rsvp-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #666;
+    margin-right: 12px;
+  }
+
+  .payment-cell {
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .payment-edit-cell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .payment-input {
+    width: 100%;
+  }
+
+  .payment-edit-buttons {
+    justify-content: flex-end;
   }
 }

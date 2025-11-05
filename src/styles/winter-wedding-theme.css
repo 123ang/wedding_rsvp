@@ -616,3 +616,18 @@ body::before {
     }
   }
 }
+
+/* Disable petals and glow on pages that should not show sakura */
+body.no-petals::before,
+body.no-petals::after,
+body.no-petals .app::before,
+body.no-petals .app::after,
+body.no-petals .main-content::before,
+body.no-petals .main-content::after {
+  content: none !important;
+  animation: none !important;
+}
+
+body.no-petals .app {
+  animation: none !important;
+}

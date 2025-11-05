@@ -4,6 +4,11 @@ import audioManager from '../utils/audioManager';
 import './VideosPage.css';
 
 const VideosPage = () => {
+  // Disable sakura petals while on videos
+  useEffect(() => {
+    document.body.classList.add('no-petals');
+    return () => document.body.classList.remove('no-petals');
+  }, []);
   const { t } = useTranslation();
   const iframeRef = useRef(null);
 
