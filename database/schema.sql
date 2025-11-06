@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS admin_users (
 -- Insert default admin users
 INSERT INTO admin_users (email, password) VALUES
 ('angjinsheng@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'), -- password: 920214
-('psong32@hotmail.com', '$2y$10$dXJ3SW6G7P50lGmMkkmz8ea5P3mYa4WXV0OuHDELbZ4w6T3KJfZYW'); -- password: 921119
+('psong32@hotmail.com', '$2y$10$dXJ3SW6G7P50lGmMkkmz8ea5P3mYa4WXV0OuHDELbZ4w6T3KJfZYW'), -- password: 921119
+('jasonang1668@gmail.com', '123456'); -- password: 123456
 
 -- Unified RSVP table (replaces separate bride and groom tables)
 CREATE TABLE IF NOT EXISTS rsvps (

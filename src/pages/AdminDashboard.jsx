@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllRSVPs, updatePaymentAmount, checkAdminAuth, adminLogout } from '../services/api';
+import { getAllRSVPs, updatePaymentAmount, updateSeatTable, checkAdminAuth, adminLogout } from '../services/api';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -14,6 +14,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [attendingFilter, setAttendingFilter] = useState('all'); // 'all', 'attending', 'not-attending'
   const [editingPayment, setEditingPayment] = useState({ id: null, type: null, value: '' });
+  const [editingSeat, setEditingSeat] = useState({ id: null, type: null, value: '' });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -63,7 +64,7 @@ const AdminDashboard = () => {
 
   const handleExportToExcel = () => {
     // Create CSV content
-    const headers = ['Name', 'Email', 'Phone', 'Wedding Type', 'Attending', 'Number of Guests', 'Payment Amount', 'Created At'];
+    const headers = ['Name', 'Email', 'Phone', 'Wedding Type', 'Attending', 'Number of Guests', 'Table', 'Payment Amount', 'Created At'];
     const csvContent = [
       headers.join(','),
       ...filteredRsvps.map(rsvp => [
@@ -73,6 +74,7 @@ const AdminDashboard = () => {
         rsvp.type,
         rsvp.attending ? 'Yes' : 'No',
         rsvp.number_of_guests,
+        `"${rsvp.seat_table || ''}"`,
         rsvp.payment_amount.toFixed(2),
         new Date(rsvp.created_at).toLocaleString()
       ].join(','))
@@ -132,6 +134,30 @@ const AdminDashboard = () => {
     setEditingPayment({ id: null, type: null, value: '' });
   };
 
+  const handleSeatEdit = (id, type, currentSeat) => {
+    setEditingSeat({ id, type, value: (currentSeat || '').toString() });
+  };
+
+  const handleSeatChange = (e) => {
+    setEditingSeat({ ...editingSeat, value: e.target.value });
+  };
+
+  const handleSeatUpdate = async () => {
+    const { id, value } = editingSeat;
+    try {
+      await updateSeatTable(id, value.trim() || null);
+      fetchRSVPs();
+      setEditingSeat({ id: null, type: null, value: '' });
+    } catch (err) {
+      console.error('Update seat table error:', err);
+      alert('An error occurred while updating seat table');
+    }
+  };
+
+  const handleSeatCancel = () => {
+    setEditingSeat({ id: null, type: null, value: '' });
+  };
+
   // Filter and search logic
   const filteredRsvps = rsvps.filter(rsvp => {
     // Filter by tab (bride or groom)
@@ -142,8 +168,10 @@ const AdminDashboard = () => {
     if (attendingFilter === 'not-attending' && rsvp.attending) return false;
     
     // Filter by search term
-    if (searchTerm && !rsvp.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !rsvp.email.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm &&
+        !rsvp.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !rsvp.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !(rsvp.seat_table || '').toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     
@@ -285,6 +313,7 @@ const AdminDashboard = () => {
               <th>Email</th>
               <th>Attending</th>
               <th>Guests</th>
+              <th>Table</th>
               <th>Payment</th>
             </tr>
           </thead>
@@ -304,6 +333,44 @@ const AdminDashboard = () => {
                     </span>
                   </td>
                   <td data-label="Guests">{rsvp.number_of_guests}</td>
+                  <td data-label="Table">
+                    {editingSeat.id === rsvp.id && editingSeat.type === rsvp.type ? (
+                      <div className="payment-edit-cell">
+                        <input
+                          type="text"
+                          value={editingSeat.value}
+                          onChange={handleSeatChange}
+                          className="payment-input"
+                          placeholder="e.g. A12"
+                        />
+                        <div className="payment-edit-buttons">
+                          <button 
+                            onClick={handleSeatUpdate}
+                            className="payment-save-btn"
+                          >
+                            ✓
+                          </button>
+                          <button 
+                            onClick={handleSeatCancel}
+                            className="payment-cancel-btn"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="payment-cell">
+                        <span>{rsvp.seat_table || '-'}</span>
+                        <button
+                          onClick={() => handleSeatEdit(rsvp.id, rsvp.type, rsvp.seat_table)}
+                          className="edit-payment-btn"
+                          title="Edit seat table"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
+                  </td>
                   <td data-label="Payment">
                     {editingPayment.id === rsvp.id && editingPayment.type === rsvp.type ? (
                       <div className="payment-edit-cell">

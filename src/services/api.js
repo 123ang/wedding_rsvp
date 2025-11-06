@@ -167,7 +167,8 @@ export const adminLogin = async (email, password) => {
     // Simple password check (in production, use proper bcrypt verification)
     if (
       (email === 'angjinsheng@gmail.com' && password === '920214') ||
-      (email === 'psong32@hotmail.com' && password === '921119')
+      (email === 'psong32@hotmail.com' && password === '921119') ||
+      (email === 'jasonang1668@gmail.com' && password === '123456')
     ) {
       // Store admin session in localStorage
       localStorage.setItem('admin_email', user.email);
@@ -231,6 +232,7 @@ export const getAllRSVPs = async () => {
       phone: rsvp.phone,
       attending: rsvp.attending,
       number_of_guests: rsvp.number_of_guests,
+      seat_table: rsvp.seat_table || '',
       payment_amount: parseFloat(rsvp.payment_amount || 0),
       created_at: rsvp.created_at
     }));
@@ -292,6 +294,42 @@ export const updatePaymentAmount = async (id, paymentAmount) => {
     console.error('Update payment error:', error);
     throw {
       message: error.response?.data?.message || "Failed to update payment amount.",
+      success: false
+    };
+  }
+};
+
+// Update seat table (admin only)
+export const updateSeatTable = async (id, seatTable) => {
+  try {
+    const adminEmail = localStorage.getItem('admin_email');
+    if (!adminEmail) {
+      throw {
+        response: {
+          status: 401,
+          data: {
+            message: "Unauthorized access.",
+            success: false
+          }
+        }
+      };
+    }
+
+    const response = await supabaseClient.patch(`/rsvps?id=eq.${id}`, {
+      seat_table: seatTable || null
+    }, {
+      headers: getSupabaseHeaders()
+    });
+
+    return {
+      message: "Seat table updated successfully.",
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('Update seat_table error:', error);
+    throw {
+      message: error.response?.data?.message || "Failed to update seat table.",
       success: false
     };
   }
