@@ -1,0 +1,102 @@
+{
+  "navigation": {
+    "title": "私たちの結婚式",
+    "brideWedding": "花嫁の結婚式",
+    "groomWedding": "花婿の結婚式",
+    "photoGallery": "フォトギャラリー",
+    "videos": "動画"
+  },
+  "hero": {
+    "brideTitle": "花嫁の結婚式",
+    "brideSubtitle": "愛と喜びの祝典",
+    "groomTitle": "花婿の結婚式",
+    "groomSubtitle": "思い出に残る一日",
+    "galleryTitle": "私たちの結婚式の思い出",
+    "gallerySubtitle": "愛、笑い、そして永遠の幸せを祝う"
+  },
+  "weddingDetails": {
+    "title": "結婚式の詳細",
+    "name": "お名前",
+    "date": "日付",
+    "time": "時間",
+    "venue": "会場",
+    "address": "住所",
+    "brideName": "王棓絲様",
+    "brideDate": "2026年1月2日（金曜日）",
+    "brideTime": "午後7時ちょうど",
+    "brideVenue": "フーホテル ブキッメルタジャム",
+    "brideAddress": "Fu Hotel, 53 Lorong Setia Sentral, Pusat Perniagaan Setia Sentral, 14000 Bukit Mertajam, Penang",
+    "groomName": "洪勁呏博士",
+    "groomDate": "2026年1月4日（日曜日）",
+    "groomTime": "午後7時ちょうど",
+    "groomVenue": "スタービューレストラン",
+    "groomAddress": "Starview Restaurant, Jalan Dato Keramat, Penang",
+    "brideDescription": "王棓絲様の特別な日を、ご家族や友人と共に祝いましょう。この喜ばしい機会を皆様と共有できることを楽しみにしております！",
+    "groomDescription": "洪勁呏博士の結婚式の日に、ぜひお集まりください。愛、笑い、そして大切な思い出で満たされた忘れられない夜になるでしょう！"
+  },
+  "rsvp": {
+    "title": "出欠のお返事",
+    "brideTitle": "花嫁の結婚式への出欠のお返事",
+    "groomTitle": "花婿の結婚式への出欠のお返事",
+    "deadline": "12月15日までに出欠のお返事をお願いします",
+    "groomDeadline": "12月15日までに出欠のお返事をお願いします",
+    "form": {
+      "name": "お名前",
+      "namePlaceholder": "フルネームを入力してください",
+      "email": "メールアドレス",
+      "emailPlaceholder": "メールアドレスを入力してください",
+      "phone": "電話番号",
+      "phonePlaceholder": "電話番号を入力してください",
+      "attending": "ご出席されますか？",
+      "attendingYes": "はい、出席します！",
+      "attendingNo": "申し訳ございませんが、出席できません",
+      "numberOfGuests": "ゲスト数",
+      "organization": "団体 / 企業",
+      "organizationPlaceholder": "団体を選択してください",
+      "organizationOptions": {
+        "lionsClub": "ライオンズクラブ",
+        "zhongZheng": "Zhong Zheng",
+        "other": "その他"
+      },
+      "submit": "出欠のお返事を送信",
+      "submitting": "送信中...",
+      "success": "ありがとうございます！出欠のお返事が正常に送信されました。",
+      "error": "出欠のお返事の送信に失敗しました。もう一度お試しください。"
+    }
+  },
+  "gallery": {
+    "viewPhoto": "写真を見る",
+    "photoAlt": "結婚式の写真"
+  },
+  "photos": {
+    "brideAlt": "美しい花嫁の写真",
+    "groomAlt": "ハンサムな花婿の写真",
+    "coupleAlt": "美しいカップルの写真",
+    "brideCaption": "花嫁の写真",
+    "groomCaption": "花婿の写真",
+    "coupleCaption": "カップルの写真",
+    "brideDescription": "捉えられた美しい瞬間",
+    "groomDescription": "捉えられたハンサムな瞬間",
+    "coupleDescription": "捉えられた美しい瞬間"
+  },
+  "videos": {
+    "title": "私たちの結婚式の動画",
+    "subtitle": "貴重な思い出と美しい瞬間を共有",
+    "audioNotice": "動画を再生すると背景音楽が自動的に一時停止し、終了すると再開します",
+    "mainVideo": {
+      "title": "結婚式のハイライト",
+      "description": "結婚式の貴重な瞬間を捉え、この喜びと幸せを皆様と共有します。"
+    }
+  },
+  "language": {
+    "switch": "言語を切り替え",
+    "chinese": "中文",
+    "english": "English",
+    "japanese": "日本語"
+  },
+  "downloads": {
+    "brideInvitation": "花嫁の招待状をダウンロード（PDF）",
+    "groomInvitation": "花婿の招待状をダウンロード（PDF）"
+  }
+}
+
