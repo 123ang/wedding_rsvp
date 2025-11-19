@@ -1,32 +1,57 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { reverseLanguageMap } from './LanguageRouteWrapper';
 import './Navigation.css';
 import './LanguageSwitcher.css';
 
 const NavigationWithLang = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+
+  // Extract current language from URL or use current i18n language
+  const getCurrentLang = () => {
+    const pathMatch = location.pathname.match(/\/(bride|groom)\/(en|cn|jp)/);
+    if (pathMatch) {
+      return pathMatch[2];
+    }
+    return reverseLanguageMap[i18n.language] || 'cn';
+  };
+
+  const currentLang = getCurrentLang();
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
+    const urlLang = reverseLanguageMap[lng] || 'cn';
+    
+    // Update URL if we're on bride or groom page
+    const pathMatch = location.pathname.match(/\/(bride|groom)\/(en|cn|jp)/);
+    if (pathMatch) {
+      const page = pathMatch[1];
+      navigate(`/${page}/${urlLang}`, { replace: true });
+    }
   };
+
+  // Hide navigation buttons on groom-only page
+  const isGroomOnlyPage = location.pathname === '/groom-only';
 
   return (
     <nav className="navigation">
       <div className="nav-container">
+        {!isGroomOnlyPage && (
         <ul className="nav-links">
           <li>
             <Link 
-              to="/bride" 
-              className={location.pathname === '/bride' ? 'active' : ''}
+              to={`/bride/${currentLang}`}
+              className={location.pathname.startsWith('/bride/') ? 'active' : ''}
             >
               {t('navigation.brideWedding')}
             </Link>
           </li>
           <li>
             <Link 
-              to="/groom" 
-              className={location.pathname === '/groom' ? 'active' : ''}
+              to={`/groom/${currentLang}`}
+              className={location.pathname.startsWith('/groom/') && !location.pathname.startsWith('/groom-only') ? 'active' : ''}
             >
               {t('navigation.groomWedding')}
             </Link>
@@ -48,6 +73,7 @@ const NavigationWithLang = () => {
                    </Link>
                  </li>
         </ul>
+        )}
         <div className="nav-right">
           <div className="language-switcher">
             <button
@@ -64,6 +90,7 @@ const NavigationWithLang = () => {
             >
               EN
             </button>
+            {!isGroomOnlyPage && (
             <button
               className={`lang-btn ${i18n.language === 'ja' ? 'active' : ''}`}
               onClick={() => changeLanguage('ja')}
@@ -71,6 +98,7 @@ const NavigationWithLang = () => {
             >
               日本語
             </button>
+            )}
           </div>
         </div>
       </div>
