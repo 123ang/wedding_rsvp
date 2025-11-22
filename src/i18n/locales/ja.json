@@ -17,6 +17,7 @@
   "weddingDetails": {
     "title": "結婚式の詳細",
     "name": "お名前",
+    "contact": "連絡先",
     "date": "日付",
     "time": "時間",
     "venue": "会場",

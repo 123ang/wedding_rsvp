@@ -11,7 +11,7 @@ const NavigationWithLang = () => {
 
   // Extract current language from URL or use current i18n language
   const getCurrentLang = () => {
-    const pathMatch = location.pathname.match(/\/(bride|groom)\/(en|cn|jp)/);
+    const pathMatch = location.pathname.match(/\/(bride|groom|groom-only)\/(en|cn|jp)/);
     if (pathMatch) {
       return pathMatch[2];
     }
@@ -24,8 +24,8 @@ const NavigationWithLang = () => {
     i18n.changeLanguage(lng);
     const urlLang = reverseLanguageMap[lng] || 'cn';
     
-    // Update URL if we're on bride or groom page
-    const pathMatch = location.pathname.match(/\/(bride|groom)\/(en|cn|jp)/);
+    // Update URL if we're on bride, groom, or groom-only page
+    const pathMatch = location.pathname.match(/\/(bride|groom|groom-only)\/(en|cn|jp)/);
     if (pathMatch) {
       const page = pathMatch[1];
       navigate(`/${page}/${urlLang}`, { replace: true });
@@ -33,7 +33,7 @@ const NavigationWithLang = () => {
   };
 
   // Hide navigation buttons on groom-only page
-  const isGroomOnlyPage = location.pathname === '/groom-only';
+  const isGroomOnlyPage = location.pathname.startsWith('/groom-only');
 
   return (
     <nav className="navigation">

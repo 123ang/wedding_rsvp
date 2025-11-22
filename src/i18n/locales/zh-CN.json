@@ -17,6 +17,7 @@
   "weddingDetails": {
     "title": "婚礼详情",
     "name": "姓名",
+    "contact": "联系方式",
     "date": "日期",
     "time": "时间",
     "venue": "场地",

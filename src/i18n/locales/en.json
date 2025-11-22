@@ -17,6 +17,7 @@
   "weddingDetails": {
     "title": "Wedding Details",
     "name": "Name",
+    "contact": "Contact",
     "date": "Date",
     "time": "Time",
     "venue": "Venue",

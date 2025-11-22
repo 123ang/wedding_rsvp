@@ -41,7 +41,12 @@ function App() {
                     } />
                     <Route path="/bride" element={<Navigate to="/bride/cn" replace />} />
                     <Route path="/groom" element={<Navigate to="/groom/cn" replace />} />
-                    <Route path="/groom-only" element={<GroomOnlyPage />} />
+                    <Route path="/groom-only/:lang" element={
+                      <LanguageRouteWrapper defaultPage="groom-only">
+                        <GroomOnlyPage />
+                      </LanguageRouteWrapper>
+                    } />
+                    <Route path="/groom-only" element={<Navigate to="/groom-only/cn" replace />} />
                     <Route path="/gallery" element={<GalleryPage />} />
                     <Route path="/videos" element={<VideosPage />} />
                   </Routes>

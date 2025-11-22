@@ -108,6 +108,19 @@
   }
 }
 
+/* Contact phone link styling */
+.contact-phone-link {
+  color: #333;
+  text-decoration: none;
+  margin-right: 0.5rem;
+  transition: color 0.3s ease;
+}
+
+.contact-phone-link:hover {
+  color: #667eea;
+  text-decoration: underline;
+}
+
 /* WhatsApp icon inline styling */
 .whatsapp-icon-link {
   display: inline-flex;

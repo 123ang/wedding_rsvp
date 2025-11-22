@@ -56,19 +56,6 @@ const GroomPage = () => {
             onSubmit={handleSubmit}
             title={t('rsvp.groomTitle')}
             deadline={t('rsvp.groomDeadline')}
-            showOrganization={true}
-            organizationOptions={[
-              { code: 'lions_bayan_baru', en: 'Lions Club of Bayan Baru', zh: '峇央峇鲁狮子会' },
-              { code: 'penang_lay_buddhist', en: 'Penang Lay Buddhist Society', zh: '槟城佛教居士林' },
-              { code: 'ang_si_toon_hong_tong_sm', en: 'Ang Si Toon Hong Tong Semenanjung Malaysia', zh: '马来西亚洪氏燉煌堂' },
-              { code: 'ang_si_chong_soo_pw', en: 'Ang Si Chong Soo Province Wellesley', zh: '北马洪氏宗祠燉煌堂' },
-              { code: 'chung_cheng_penang', en: 'Chung Cheng School Union Penang', zh: '中正校友会' },
-              { code: 'chung_hwa_1981', en: '1981 Chung Hwa Graduates', zh: '1981 中华毕业生' },
-              { code: 'tong_shan_1975', en: '1975 Tong Shan Primary Graduates', zh: '1975年同善小学毕业生' },
-              { code: 'chinese_commercial_union', en: 'Chinese Commercial Union', zh: '槟华商业联合会' },
-              { code: 'anson_road_pasar', en: 'Anson Road Pasar Society', zh: '安顺路巴刹同业公会' },
-              { code: 'other', en: 'Others', zh: '其他' }
-            ]}
           />
         </div>
       </div>
