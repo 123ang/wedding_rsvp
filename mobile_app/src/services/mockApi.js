@@ -362,3 +362,4 @@ export const getNotifications = async () => {
   return mockData.notifications;
 };
 
+
