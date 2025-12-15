@@ -10,6 +10,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import BackgroundMusic from './components/BackgroundMusic';
 import ErrorBoundary from './components/ErrorBoundary';
 import LanguageRouteWrapper from './components/LanguageRouteWrapper';
+import ProtectedRoute from './components/ProtectedRoute';
+import GuestRoute from './components/GuestRoute';
 import './App.css';
 import './styles/mobile-optimizations.css';
 import './styles/winter-wedding-theme.css';
@@ -20,8 +22,16 @@ function App() {
       <Router>
         <div className="app">
           <Routes>
-            <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/login" element={
+              <GuestRoute>
+                <AdminLoginPage />
+              </GuestRoute>
+            } />
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={
               <>
                 <BackgroundMusic />

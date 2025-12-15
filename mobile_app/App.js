@@ -325,9 +325,9 @@ const PhotoFeedScreen = ({ navigation }) => {
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
+    </View>
+  );
+}
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>

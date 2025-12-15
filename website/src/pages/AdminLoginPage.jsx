@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminLogin } from '../services/api';
+import { adminLogin, checkAdminAuth } from '../services/api';
 import './AdminLoginPage.css';
 
 const AdminLoginPage = () => {
@@ -9,6 +9,31 @@ const AdminLoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Check if admin is already logged in (backup check, GuestRoute also handles this)
+  useEffect(() => {
+    const checkAuth = () => {
+      const { success } = checkAdminAuth();
+      if (success) {
+        // Already logged in, redirect to dashboard
+        navigate('/admin/dashboard', { replace: true });
+      }
+    };
+    
+    // Check immediately
+    checkAuth();
+    
+    // Also check on focus (when user navigates back to this page)
+    const handleFocus = () => {
+      checkAuth();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +44,8 @@ const AdminLoginPage = () => {
       const data = await adminLogin(email, password);
       
       if (data.success) {
-        navigate('/admin/dashboard');
+        // Login successful, redirect to dashboard (replace so back button doesn't go to login)
+        navigate('/admin/dashboard', { replace: true });
       } else {
         setError(data.message || 'Login failed');
       }
