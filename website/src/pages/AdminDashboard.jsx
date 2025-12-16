@@ -22,9 +22,16 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Disable sakura petals on admin dashboard
+    document.body.classList.add('no-petals');
+
     checkAuth();
     fetchRSVPs();
     fetchRelationships();
+
+    return () => {
+      document.body.classList.remove('no-petals');
+    };
   }, []);
 
   // Close dropdown when clicking outside

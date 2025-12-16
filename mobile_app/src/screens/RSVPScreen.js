@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import realApi from '../services/realApi';
 import { useMutation } from '../hooks/useApi';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Simple Select Component that works on both web and mobile
 const SimpleSelect = ({ value, options, onValueChange, placeholder }) => {
@@ -85,6 +86,7 @@ const SimpleSelect = ({ value, options, onValueChange, placeholder }) => {
 
 export default function RSVPScreen({ navigation, route }) {
   const weddingType = route?.params?.type || 'bride'; // 'bride' or 'groom'
+  const { t } = useLanguage();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -108,11 +110,11 @@ export default function RSVPScreen({ navigation, route }) {
   const handleSubmit = async () => {
     // Validation
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      Alert.alert(t('rsvp.errorTitle'), t('rsvp.field.name'));
       return;
     }
     if (!formData.phone.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
+      Alert.alert(t('rsvp.errorTitle'), t('rsvp.field.phone'));
       return;
     }
 
@@ -139,8 +141,8 @@ export default function RSVPScreen({ navigation, route }) {
       await submitRSVP(payload);
       
       Alert.alert(
-        'Success! 🎉',
-        'Your RSVP has been submitted successfully!',
+        t('rsvp.successTitle'),
+        t('rsvp.successMessage'),
         [
           {
             text: 'OK',
@@ -150,7 +152,7 @@ export default function RSVPScreen({ navigation, route }) {
       );
     } catch (error) {
       Alert.alert(
-        'Error',
+        t('rsvp.errorTitle'),
         error.response?.data?.message || error.message || 'Failed to submit RSVP. Please try again.'
       );
     }
@@ -159,7 +161,7 @@ export default function RSVPScreen({ navigation, route }) {
   // Options for selects
   const guestOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => ({
     value: num.toString(),
-    label: `${num} 人`,
+    label: t('rsvp.guests.label', { count: num }),
   }));
 
   const organizationOptions = [
@@ -178,15 +180,15 @@ export default function RSVPScreen({ navigation, route }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>
-            {weddingType === 'bride' ? '新娘婚礼 RSVP' : '新郎婚礼 RSVP'}
+            {weddingType === 'bride' ? t('rsvp.titleBride') : t('rsvp.titleGroom')}
           </Text>
-          <Text style={styles.subtitle}>请填写以下信息确认出席</Text>
+          <Text style={styles.subtitle}>{t('rsvp.subtitle')}</Text>
         </View>
 
         <View style={styles.form}>
           {/* Name */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>姓名 *</Text>
+            <Text style={styles.label}>{t('rsvp.field.name')}</Text>
             <TextInput
               style={styles.input}
               placeholder="请输入您的姓名"
@@ -197,7 +199,7 @@ export default function RSVPScreen({ navigation, route }) {
 
           {/* Email */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>电子邮件</Text>
+            <Text style={styles.label}>{t('rsvp.field.email')}</Text>
             <TextInput
               style={styles.input}
               placeholder="example@email.com"
@@ -210,7 +212,7 @@ export default function RSVPScreen({ navigation, route }) {
 
           {/* Phone */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>电话号码 *</Text>
+            <Text style={styles.label}>{t('rsvp.field.phone')}</Text>
             <TextInput
               style={styles.input}
               placeholder="01X-XXXXXXX"
@@ -222,14 +224,14 @@ export default function RSVPScreen({ navigation, route }) {
 
           {/* Attending */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>是否出席 *</Text>
+            <Text style={styles.label}>{t('rsvp.field.attending')}</Text>
             <View style={styles.radioGroup}>
               <TouchableOpacity
                 style={[styles.radioButton, formData.attending === true && styles.radioButtonActive]}
                 onPress={() => updateField('attending', true)}
               >
                 <Text style={[styles.radioText, formData.attending === true && styles.radioTextActive]}>
-                  ✓ 我会出席
+                  {t('rsvp.attending.yes')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -237,7 +239,7 @@ export default function RSVPScreen({ navigation, route }) {
                 onPress={() => updateField('attending', false)}
               >
                 <Text style={[styles.radioText, formData.attending === false && styles.radioTextActive]}>
-                  ✗ 无法出席
+                  {t('rsvp.attending.no')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -246,7 +248,7 @@ export default function RSVPScreen({ navigation, route }) {
           {/* Number of Guests */}
           {formData.attending === true && (
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>人数 *</Text>
+              <Text style={styles.label}>{t('rsvp.field.guests')}</Text>
               <SimpleSelect
                 value={formData.number_of_guests}
                 options={guestOptions}
@@ -259,7 +261,7 @@ export default function RSVPScreen({ navigation, route }) {
           {/* Organization (Groom only) */}
           {weddingType === 'groom' && (
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>单位/组织</Text>
+              <Text style={styles.label}>{t('rsvp.field.organization')}</Text>
               <SimpleSelect
                 value={formData.organization}
                 options={organizationOptions}
@@ -271,7 +273,7 @@ export default function RSVPScreen({ navigation, route }) {
 
           {/* Relationship */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>关系</Text>
+            <Text style={styles.label}>{t('rsvp.field.relationship')}</Text>
             <TextInput
               style={styles.input}
               placeholder="例如：新郎朋友、新娘同事"
@@ -282,7 +284,7 @@ export default function RSVPScreen({ navigation, route }) {
 
           {/* Remark */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>备注</Text>
+            <Text style={styles.label}>{t('rsvp.field.remark')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="有什么想告诉我们的吗？"
@@ -303,7 +305,7 @@ export default function RSVPScreen({ navigation, route }) {
             {loading === true ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.submitButtonText}>提交 RSVP</Text>
+              <Text style={styles.submitButtonText}>{t('rsvp.submit')}</Text>
             )}
           </TouchableOpacity>
         </View>

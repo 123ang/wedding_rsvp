@@ -28,6 +28,7 @@ import { toBoolean } from './src/utils/booleanUtils';
 import ApiTestScreen from './src/screens/ApiTestScreen';
 import RSVPScreen from './src/screens/RSVPScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import { LanguageProvider, useLanguage } from './src/contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
 
@@ -980,12 +981,22 @@ const TimelineScreen = () => {
 // Settings Screen
 const SettingsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { language, setLanguage, languages } = useLanguage();
+
+  const cycleLanguage = () => {
+    const order = ['en', 'ms', 'ja'];
+    const currentIndex = order.indexOf(language);
+    const next = order[(currentIndex + 1) % order.length];
+    setLanguage(next);
+  };
+
+  const currentLangLabel = languages[language]?.nativeLabel || 'English';
 
   const settings = [
     { icon: 'flask', title: 'API 测试', desc: '测试服务器连接', screen: 'ApiTest' },
     { icon: 'notifications', title: '通知设置', desc: '管理推送通知', screen: null },
     { icon: 'color-palette', title: '主题颜色', desc: theme.name, screen: 'ThemeSelection' },
-    { icon: 'language', title: '语言', desc: '中文（简体）', screen: null },
+    { icon: 'language', title: '语言', desc: currentLangLabel, screen: null },
     { icon: 'share-social', title: '分享应用', desc: '邀请朋友使用', screen: null },
     { icon: 'information-circle', title: '关于', desc: '版本 1.0.0', screen: null },
     { icon: 'help-circle', title: '帮助与支持', desc: '常见问题', screen: null }
@@ -998,7 +1009,13 @@ const SettingsScreen = ({ navigation }) => {
           <TouchableOpacity
             key={index}
             style={[styles.settingsItem, { backgroundColor: '#fff' }]}
-            onPress={() => setting.screen && navigation.navigate(setting.screen)}
+            onPress={() => {
+              if (setting.icon === 'language') {
+                cycleLanguage();
+              } else if (setting.screen) {
+                navigation.navigate(setting.screen);
+              }
+            }}
           >
             <View style={styles.settingsLeft}>
               <View style={[styles.settingsIcon, { backgroundColor: theme.secondary }]}>
@@ -1080,51 +1097,53 @@ export default function App() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen
-            name="GroomProfile"
-            component={GroomProfileScreen}
-          />
-          <Stack.Screen
-            name="BrideProfile"
-            component={BrideProfileScreen}
-          />
-          <Stack.Screen
-            name="PhotoDetail"
-            component={PhotoDetailScreen}
-          />
-          <Stack.Screen
-            name="PhotoUpload"
-            component={PhotoUploadScreen}
-          />
-          <Stack.Screen
-            name="Videos"
-            component={VideosScreen}
-          />
-          <Stack.Screen
-            name="Timeline"
-            component={TimelineScreen}
-          />
-          <Stack.Screen
-            name="ThemeSelection"
-            component={ThemeSelectionScreen}
-          />
-          <Stack.Screen
-            name="ApiTest"
-            component={ApiTestScreen}
-          />
-          <Stack.Screen
-            name="RSVP"
-            component={RSVPScreen}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="GroomProfile"
+              component={GroomProfileScreen}
+            />
+            <Stack.Screen
+              name="BrideProfile"
+              component={BrideProfileScreen}
+            />
+            <Stack.Screen
+              name="PhotoDetail"
+              component={PhotoDetailScreen}
+            />
+            <Stack.Screen
+              name="PhotoUpload"
+              component={PhotoUploadScreen}
+            />
+            <Stack.Screen
+              name="Videos"
+              component={VideosScreen}
+            />
+            <Stack.Screen
+              name="Timeline"
+              component={TimelineScreen}
+            />
+            <Stack.Screen
+              name="ThemeSelection"
+              component={ThemeSelectionScreen}
+            />
+            <Stack.Screen
+              name="ApiTest"
+              component={ApiTestScreen}
+            />
+            <Stack.Screen
+              name="RSVP"
+              component={RSVPScreen}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }
 
