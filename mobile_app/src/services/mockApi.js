@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockData } from '../data/mockData';
+import { normalizePhoto, normalizeSeat, normalizeComment } from '../utils/booleanUtils';
 
 // Simulate API delay
 const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
@@ -14,28 +15,34 @@ const STORAGE_KEYS = {
   USER_PHONE: '@user_phone'
 };
 
+// Clear all cached data and reset to fresh mock data
+export const resetAllData = async () => {
+  try {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.PHOTOS,
+      STORAGE_KEYS.TAGS,
+      STORAGE_KEYS.SEATS,
+      STORAGE_KEYS.GUESTS,
+    ]);
+    console.log('All cached data cleared');
+  } catch (error) {
+    console.error('Error clearing data:', error);
+  }
+};
+
 // Initialize data in AsyncStorage
 export const initializeData = async () => {
   try {
-    const photos = await AsyncStorage.getItem(STORAGE_KEYS.PHOTOS);
-    if (!photos) {
-      await AsyncStorage.setItem(STORAGE_KEYS.PHOTOS, JSON.stringify(mockData.photos));
-    }
+    // Always clear old data to prevent boolean string corruption
+    await resetAllData();
     
-    const tags = await AsyncStorage.getItem(STORAGE_KEYS.TAGS);
-    if (!tags) {
-      await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(mockData.tags));
-    }
+    // Set fresh data with proper booleans
+    await AsyncStorage.setItem(STORAGE_KEYS.PHOTOS, JSON.stringify(mockData.photos));
+    await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(mockData.tags));
+    await AsyncStorage.setItem(STORAGE_KEYS.SEATS, JSON.stringify(mockData.seats));
+    await AsyncStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(mockData.guests));
     
-    const seats = await AsyncStorage.getItem(STORAGE_KEYS.SEATS);
-    if (!seats) {
-      await AsyncStorage.setItem(STORAGE_KEYS.SEATS, JSON.stringify(mockData.seats));
-    }
-    
-    const guests = await AsyncStorage.getItem(STORAGE_KEYS.GUESTS);
-    if (!guests) {
-      await AsyncStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(mockData.guests));
-    }
+    console.log('Data initialized with proper boolean types');
   } catch (error) {
     console.error('Error initializing data:', error);
   }
@@ -47,27 +54,23 @@ export const getPhotos = async () => {
   try {
     const photos = await AsyncStorage.getItem(STORAGE_KEYS.PHOTOS);
     const parsedPhotos = photos ? JSON.parse(photos) : mockData.photos;
-    // Ensure all boolean values are actual booleans, not strings
-    return parsedPhotos.map(photo => ({
-      ...photo,
-      likedByMe: photo.likedByMe === true || photo.likedByMe === 'true' || photo.likedByMe === 1,
-      savedByMe: photo.savedByMe === true || photo.savedByMe === 'true' || photo.savedByMe === 1,
-      comments: photo.comments ? photo.comments.map(comment => ({
-        ...comment,
-        likedByMe: comment.likedByMe === true || comment.likedByMe === 'true' || comment.likedByMe === 1,
-      })) : [],
-    }));
+    // Normalize all boolean values
+    return parsedPhotos.map(photo => {
+      const normalized = normalizePhoto(photo);
+      if (normalized.comments) {
+        normalized.comments = normalized.comments.map(normalizeComment);
+      }
+      return normalized;
+    });
   } catch (error) {
     // Also normalize mockData.photos
-    return mockData.photos.map(photo => ({
-      ...photo,
-      likedByMe: photo.likedByMe === true || photo.likedByMe === 'true' || photo.likedByMe === 1,
-      savedByMe: photo.savedByMe === true || photo.savedByMe === 'true' || photo.savedByMe === 1,
-      comments: photo.comments ? photo.comments.map(comment => ({
-        ...comment,
-        likedByMe: comment.likedByMe === true || comment.likedByMe === 'true' || comment.likedByMe === 1,
-      })) : [],
-    }));
+    return mockData.photos.map(photo => {
+      const normalized = normalizePhoto(photo);
+      if (normalized.comments) {
+        normalized.comments = normalized.comments.map(normalizeComment);
+      }
+      return normalized;
+    });
   }
 };
 
@@ -256,19 +259,11 @@ export const getSeats = async () => {
   try {
     const seats = await AsyncStorage.getItem(STORAGE_KEYS.SEATS);
     const parsedSeats = seats ? JSON.parse(seats) : mockData.seats;
-    // Ensure all boolean values are actual booleans, not strings
-    return parsedSeats.map(seat => ({
-      ...seat,
-      occupied: seat.occupied === true || seat.occupied === 'true' || seat.occupied === 1,
-      isMySeat: seat.isMySeat === true || seat.isMySeat === 'true' || seat.isMySeat === 1,
-    }));
+    // Normalize all boolean values
+    return parsedSeats.map(normalizeSeat);
   } catch (error) {
     // Also normalize mockData.seats
-    return mockData.seats.map(seat => ({
-      ...seat,
-      occupied: seat.occupied === true || seat.occupied === 'true' || seat.occupied === 1,
-      isMySeat: seat.isMySeat === true || seat.isMySeat === 'true' || seat.isMySeat === 1,
-    }));
+    return mockData.seats.map(normalizeSeat);
   }
 };
 

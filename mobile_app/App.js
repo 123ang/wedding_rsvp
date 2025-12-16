@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { mockData } from './src/data/mockData';
 import { themes, defaultTheme } from './src/utils/themes';
 import * as mockApi from './src/services/mockApi';
+import { toBoolean } from './src/utils/booleanUtils';
 import ApiTestScreen from './src/screens/ApiTestScreen';
 import RSVPScreen from './src/screens/RSVPScreen';
 
@@ -98,8 +99,8 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView>
+      <StatusBar barStyle="dark-content" hidden={false} translucent={false} />
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View style={[styles.heroSection, { backgroundColor: theme.gradientStart }]}>
           <Text style={[styles.heroTitle, { color: theme.text }]}>
@@ -154,6 +155,7 @@ const HomeScreen = ({ navigation }) => {
               style={[styles.featureCard, { backgroundColor: '#fff' }]}
               onPress={() => navigation.navigate(feature.screen)}
               activeOpacity={0.7}
+              disabled={false}
             >
               <Text style={styles.featureIcon}>{feature.icon}</Text>
               <Text style={[styles.featureTitle, { color: theme.text }]}>{feature.title}</Text>
@@ -249,19 +251,55 @@ const PhotoFeedScreen = ({ navigation }) => {
   }, []);
 
   const loadPhotos = async () => {
-    const data = await mockApi.getPhotos();
-    setPhotos(data);
-    setLoading(false);
+    try {
+      const data = await mockApi.getPhotos();
+      // Double-check all booleans are normalized
+      const normalized = data.map(photo => {
+        const p = { ...photo };
+        p.likedByMe = toBoolean(p.likedByMe);
+        p.savedByMe = toBoolean(p.savedByMe);
+        if (p.comments) {
+          p.comments = p.comments.map(c => ({
+            ...c,
+            likedByMe: toBoolean(c.likedByMe)
+          }));
+        }
+        return p;
+      });
+      setPhotos(normalized);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading photos:', error);
+      setLoading(false);
+    }
   };
 
   const handleLike = async (photoId) => {
     const updated = await mockApi.likePhoto(photoId);
-    setPhotos(photos.map(p => p.id === photoId ? updated : p));
+    const normalized = {
+      ...updated,
+      likedByMe: toBoolean(updated.likedByMe),
+      savedByMe: toBoolean(updated.savedByMe),
+      comments: updated.comments ? updated.comments.map(c => ({
+        ...c,
+        likedByMe: toBoolean(c.likedByMe)
+      })) : []
+    };
+    setPhotos(photos.map(p => p.id === photoId ? normalized : p));
   };
 
   const handleSave = async (photoId) => {
     const updated = await mockApi.savePhoto(photoId);
-    setPhotos(photos.map(p => p.id === photoId ? updated : p));
+    const normalized = {
+      ...updated,
+      likedByMe: toBoolean(updated.likedByMe),
+      savedByMe: toBoolean(updated.savedByMe),
+      comments: updated.comments ? updated.comments.map(c => ({
+        ...c,
+        likedByMe: toBoolean(c.likedByMe)
+      })) : []
+    };
+    setPhotos(photos.map(p => p.id === photoId ? normalized : p));
   };
 
   const renderPhoto = ({ item }) => (
@@ -294,9 +332,9 @@ const PhotoFeedScreen = ({ navigation }) => {
       <View style={styles.postActions}>
         <TouchableOpacity onPress={() => handleLike(item.id)}>
           <Ionicons
-            name={item.likedByMe ? 'heart' : 'heart-outline'}
+            name={toBoolean(item.likedByMe) ? 'heart' : 'heart-outline'}
             size={28}
-            color={item.likedByMe ? '#e91e63' : theme.text}
+            color={toBoolean(item.likedByMe) ? '#e91e63' : theme.text}
           />
         </TouchableOpacity>
         <TouchableOpacity
@@ -308,9 +346,9 @@ const PhotoFeedScreen = ({ navigation }) => {
         <View style={{ flex: 1 }} />
         <TouchableOpacity onPress={() => handleSave(item.id)}>
           <Ionicons
-            name={item.savedByMe ? 'bookmark' : 'bookmark-outline'}
+            name={toBoolean(item.savedByMe) ? 'bookmark' : 'bookmark-outline'}
             size={26}
-            color={item.savedByMe ? theme.primary : theme.text}
+            color={toBoolean(item.savedByMe) ? theme.primary : theme.text}
           />
         </TouchableOpacity>
       </View>
@@ -355,6 +393,7 @@ const PhotoFeedScreen = ({ navigation }) => {
         renderItem={renderPhoto}
         keyExtractor={item => item.id.toString()}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={false}
       />
     </SafeAreaView>
   );
@@ -363,30 +402,51 @@ const PhotoFeedScreen = ({ navigation }) => {
 // Photo Detail Screen (with comments)
 const PhotoDetailScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
-  const [photo, setPhoto] = useState(route.params.photo);
+  const [photo, setPhoto] = useState(() => {
+    const p = route.params.photo;
+    return {
+      ...p,
+      likedByMe: toBoolean(p.likedByMe),
+      savedByMe: toBoolean(p.savedByMe),
+      comments: p.comments ? p.comments.map(c => ({
+        ...c,
+        likedByMe: toBoolean(c.likedByMe)
+      })) : []
+    };
+  });
   const [commentText, setCommentText] = useState('');
+
+  const normalizePhoto = (p) => ({
+    ...p,
+    likedByMe: toBoolean(p.likedByMe),
+    savedByMe: toBoolean(p.savedByMe),
+    comments: p.comments ? p.comments.map(c => ({
+      ...c,
+      likedByMe: toBoolean(c.likedByMe)
+    })) : []
+  });
 
   const handleLike = async () => {
     const updated = await mockApi.likePhoto(photo.id);
-    setPhoto(updated);
+    setPhoto(normalizePhoto(updated));
   };
 
   const handleSave = async () => {
     const updated = await mockApi.savePhoto(photo.id);
-    setPhoto(updated);
+    setPhoto(normalizePhoto(updated));
   };
 
   const handleAddComment = async () => {
     if (commentText.trim()) {
       const updated = await mockApi.addComment(photo.id, commentText);
-      setPhoto(updated);
+      setPhoto(normalizePhoto(updated));
       setCommentText('');
     }
   };
 
   const handleLikeComment = async (commentId) => {
     const updated = await mockApi.likeComment(photo.id, commentId);
-    setPhoto(updated);
+    setPhoto(normalizePhoto(updated));
   };
 
   return (
@@ -417,9 +477,9 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         <View style={styles.postActions}>
           <TouchableOpacity onPress={handleLike}>
             <Ionicons
-              name={photo.likedByMe ? 'heart' : 'heart-outline'}
+              name={toBoolean(photo.likedByMe) ? 'heart' : 'heart-outline'}
               size={28}
-              color={photo.likedByMe ? '#e91e63' : theme.text}
+              color={toBoolean(photo.likedByMe) ? '#e91e63' : theme.text}
             />
           </TouchableOpacity>
           <TouchableOpacity style={{ marginLeft: 15 }}>
@@ -428,9 +488,9 @@ const PhotoDetailScreen = ({ route, navigation }) => {
           <View style={{ flex: 1 }} />
           <TouchableOpacity onPress={handleSave}>
             <Ionicons
-              name={photo.savedByMe ? 'bookmark' : 'bookmark-outline'}
+              name={toBoolean(photo.savedByMe) ? 'bookmark' : 'bookmark-outline'}
               size={26}
-              color={photo.savedByMe ? theme.primary : theme.text}
+              color={toBoolean(photo.savedByMe) ? theme.primary : theme.text}
             />
           </TouchableOpacity>
         </View>
@@ -463,9 +523,9 @@ const PhotoDetailScreen = ({ route, navigation }) => {
               </View>
               <TouchableOpacity onPress={() => handleLikeComment(comment.id)}>
                 <Ionicons
-                  name={comment.likedByMe ? 'heart' : 'heart-outline'}
+                  name={toBoolean(comment.likedByMe) ? 'heart' : 'heart-outline'}
                   size={16}
-                  color={comment.likedByMe ? '#e91e63' : theme.textLight}
+                  color={toBoolean(comment.likedByMe) ? '#e91e63' : theme.textLight}
                 />
               </TouchableOpacity>
             </View>
@@ -616,7 +676,7 @@ const PhotoUploadScreen = ({ navigation }) => {
             style={[styles.captionInput, { borderColor: theme.secondary, color: theme.text }]}
             placeholder="分享这一刻的感受..."
             placeholderTextColor={theme.textLight}
-            multiline
+            multiline={true}
             numberOfLines={4}
             value={caption}
             onChangeText={setCaption}
@@ -627,7 +687,7 @@ const PhotoUploadScreen = ({ navigation }) => {
         <TouchableOpacity
           style={[styles.uploadButton, { backgroundColor: theme.primary }]}
           onPress={handleUpload}
-          disabled={uploading}
+          disabled={uploading === true}
         >
           {uploading ? (
             <ActivityIndicator color="#fff" />
@@ -654,11 +714,12 @@ const MainTabs = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
+          const isFocused = toBoolean(focused);
           let iconName;
-          if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
-          else if (route.name === 'Photos') iconName = focused ? 'images' : 'images-outline';
-          else if (route.name === 'Seats') iconName = focused ? 'grid' : 'grid-outline';
-          else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
+          if (route.name === 'Home') iconName = isFocused ? 'home' : 'home-outline';
+          else if (route.name === 'Photos') iconName = isFocused ? 'images' : 'images-outline';
+          else if (route.name === 'Seats') iconName = isFocused ? 'grid' : 'grid-outline';
+          else if (route.name === 'Settings') iconName = isFocused ? 'settings' : 'settings-outline';
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -667,7 +728,9 @@ const MainTabs = () => {
         tabBarStyle: { backgroundColor: theme.background, borderTopColor: theme.secondary },
         headerStyle: { backgroundColor: theme.gradientStart },
         headerTintColor: theme.primary,
-        headerTitleStyle: { fontWeight: 'bold' }
+        headerTitleStyle: { fontWeight: 'bold' },
+        lazy: false,
+        tabBarHideOnKeyboard: false
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '首页', headerTitle: `${mockData.weddingInfo.groomShortName} ♥ ${mockData.weddingInfo.brideShortName} Wedding` }} />
@@ -702,8 +765,18 @@ const SeatMapScreen = () => {
   }, []);
 
   const loadSeats = async () => {
-    const data = await mockApi.getSeats();
-    setSeats(data);
+    try {
+      const data = await mockApi.getSeats();
+      // Double-check all booleans are normalized
+      const normalized = data.map(seat => ({
+        ...seat,
+        occupied: toBoolean(seat.occupied),
+        isMySeat: toBoolean(seat.isMySeat)
+      }));
+      setSeats(normalized);
+    } catch (error) {
+      console.error('Error loading seats:', error);
+    }
   };
 
   const tables = [1, 2, 3];
@@ -728,25 +801,25 @@ const SeatMapScreen = () => {
                     style={[
                       styles.seatItem,
                       { borderColor: theme.secondary },
-                      seat.occupied && { backgroundColor: theme.secondary, borderColor: theme.primary },
-                      seat.isMySeat && { backgroundColor: theme.primary, borderColor: theme.primary }
+                      toBoolean(seat.occupied) && { backgroundColor: theme.secondary, borderColor: theme.primary },
+                      toBoolean(seat.isMySeat) && { backgroundColor: theme.primary, borderColor: theme.primary }
                     ]}
                   >
                     <Text
                       style={[
                         styles.seatNumber,
                         { color: theme.textLight },
-                        seat.isMySeat && { color: '#fff' }
+                        toBoolean(seat.isMySeat) && { color: '#fff' }
                       ]}
                     >
                       {seat.seatNumber}
                     </Text>
-                    {seat.guestName && (
+                    {(seat.guestName && seat.guestName !== '') && (
                       <Text
                         style={[
                           styles.seatName,
                           { color: theme.text },
-                          seat.isMySeat && { color: '#fff' }
+                          toBoolean(seat.isMySeat) && { color: '#fff' }
                         ]}
                       >
                         {seat.guestName}
@@ -938,7 +1011,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: true }}>
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen
@@ -946,6 +1019,7 @@ export default function App() {
             component={GroomProfileScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '认识新郎',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -959,6 +1033,7 @@ export default function App() {
             component={BrideProfileScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '认识新娘',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -972,6 +1047,7 @@ export default function App() {
             component={PhotoDetailScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '照片',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -985,6 +1061,7 @@ export default function App() {
             component={PhotoUploadScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '分享照片',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -998,6 +1075,7 @@ export default function App() {
             component={VideosScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '视频',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -1011,6 +1089,7 @@ export default function App() {
             component={TimelineScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '婚礼流程',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -1024,6 +1103,7 @@ export default function App() {
             component={ThemeSelectionScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: '主题颜色',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -1037,6 +1117,7 @@ export default function App() {
             component={ApiTestScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: 'API 测试',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
@@ -1050,6 +1131,7 @@ export default function App() {
             component={RSVPScreen}
             options={({ navigation }) => ({
               headerShown: true,
+              animationEnabled: true,
               title: 'RSVP',
               headerLeft: () => (
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>

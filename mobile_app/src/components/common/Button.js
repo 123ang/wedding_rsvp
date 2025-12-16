@@ -11,7 +11,7 @@ export const Button = ({ title, onPress, style, textStyle, loading, disabled, th
         style
       ]}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={disabled === true || loading === true}
       activeOpacity={0.8}
     >
       {loading ? (

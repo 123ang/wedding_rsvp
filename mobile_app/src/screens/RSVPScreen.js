@@ -15,10 +15,73 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import realApi from '../services/realApi';
 import { useMutation } from '../hooks/useApi';
+
+// Simple Select Component that works on both web and mobile
+const SimpleSelect = ({ value, options, onValueChange, placeholder }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  
+  const selectedOption = options.find(opt => opt.value === value);
+  
+  return (
+    <>
+      <TouchableOpacity
+        style={styles.selectButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={[styles.selectButtonText, !selectedOption && styles.selectPlaceholder]}>
+          {selectedOption ? selectedOption.label : placeholder || '请选择'}
+        </Text>
+        <Text style={styles.selectArrow}>▼</Text>
+      </TouchableOpacity>
+      
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>请选择</Text>
+            <FlatList
+              data={options}
+              keyExtractor={(item) => item.value.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalOption,
+                    value === item.value && styles.modalOptionSelected
+                  ]}
+                  onPress={() => {
+                    onValueChange(item.value);
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    value === item.value && styles.modalOptionTextSelected
+                  ]}>
+                    {item.label}
+                  </Text>
+                  {value === item.value && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+};
 
 export default function RSVPScreen({ navigation, route }) {
   const weddingType = route?.params?.type || 'bride'; // 'bride' or 'groom'
@@ -58,7 +121,7 @@ export default function RSVPScreen({ navigation, route }) {
         name: formData.name.trim(),
         email: formData.email.trim() || null,
         phone: formData.phone.trim(),
-        attending: formData.attending,
+        attending: formData.attending === true,
         number_of_guests: parseInt(formData.number_of_guests) || 1,
       };
 
@@ -92,6 +155,20 @@ export default function RSVPScreen({ navigation, route }) {
       );
     }
   };
+
+  // Options for selects
+  const guestOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => ({
+    value: num.toString(),
+    label: `${num} 人`,
+  }));
+
+  const organizationOptions = [
+    { value: '', label: '请选择' },
+    { value: '新郎同事', label: '新郎同事' },
+    { value: '新郎朋友', label: '新郎朋友' },
+    { value: '新郎家人', label: '新郎家人' },
+    { value: '其他', label: '其他' },
+  ];
 
   return (
     <KeyboardAvoidingView
@@ -148,18 +225,18 @@ export default function RSVPScreen({ navigation, route }) {
             <Text style={styles.label}>是否出席 *</Text>
             <View style={styles.radioGroup}>
               <TouchableOpacity
-                style={[styles.radioButton, formData.attending && styles.radioButtonActive]}
+                style={[styles.radioButton, formData.attending === true && styles.radioButtonActive]}
                 onPress={() => updateField('attending', true)}
               >
-                <Text style={[styles.radioText, formData.attending && styles.radioTextActive]}>
+                <Text style={[styles.radioText, formData.attending === true && styles.radioTextActive]}>
                   ✓ 我会出席
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, !formData.attending && styles.radioButtonActive]}
+                style={[styles.radioButton, formData.attending === false && styles.radioButtonActive]}
                 onPress={() => updateField('attending', false)}
               >
-                <Text style={[styles.radioText, !formData.attending && styles.radioTextActive]}>
+                <Text style={[styles.radioText, formData.attending === false && styles.radioTextActive]}>
                   ✗ 无法出席
                 </Text>
               </TouchableOpacity>
@@ -167,19 +244,15 @@ export default function RSVPScreen({ navigation, route }) {
           </View>
 
           {/* Number of Guests */}
-          {formData.attending && (
+          {formData.attending === true && (
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>人数 *</Text>
-              <Picker
-                selectedValue={formData.number_of_guests}
+              <SimpleSelect
+                value={formData.number_of_guests}
+                options={guestOptions}
                 onValueChange={(value) => updateField('number_of_guests', value)}
-                style={styles.picker}
-                enabled={true}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <Picker.Item key={num} label={`${num} 人`} value={num.toString()} />
-                ))}
-              </Picker>
+                placeholder="选择人数"
+              />
             </View>
           )}
 
@@ -187,18 +260,12 @@ export default function RSVPScreen({ navigation, route }) {
           {weddingType === 'groom' && (
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>单位/组织</Text>
-              <Picker
-                selectedValue={formData.organization}
+              <SimpleSelect
+                value={formData.organization}
+                options={organizationOptions}
                 onValueChange={(value) => updateField('organization', value)}
-                style={styles.picker}
-                enabled={true}
-              >
-                <Picker.Item label="请选择" value="" />
-                <Picker.Item label="新郎同事" value="新郎同事" />
-                <Picker.Item label="新郎朋友" value="新郎朋友" />
-                <Picker.Item label="新郎家人" value="新郎家人" />
-                <Picker.Item label="其他" value="其他" />
-              </Picker>
+                placeholder="请选择"
+              />
             </View>
           )}
 
@@ -221,7 +288,7 @@ export default function RSVPScreen({ navigation, route }) {
               placeholder="有什么想告诉我们的吗？"
               value={formData.remark}
               onChangeText={(text) => updateField('remark', text)}
-              multiline
+              multiline={true}
               numberOfLines={4}
               textAlignVertical="top"
             />
@@ -229,11 +296,11 @@ export default function RSVPScreen({ navigation, route }) {
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, loading === true && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading === true}
           >
-            {loading ? (
+            {loading === true ? (
               <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.submitButtonText}>提交 RSVP</Text>
@@ -296,9 +363,26 @@ const styles = StyleSheet.create({
     minHeight: 100,
     paddingTop: 12,
   },
-  picker: {
+  selectButton: {
     backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectPlaceholder: {
+    color: '#999',
+  },
+  selectArrow: {
+    fontSize: 12,
+    color: '#666',
   },
   radioGroup: {
     flexDirection: 'row',
@@ -345,5 +429,51 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: '80%',
+    maxHeight: '60%',
+    paddingVertical: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#FFF0F5',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modalOptionTextSelected: {
+    color: '#FF6B9D',
+    fontWeight: '600',
+  },
+  checkmark: {
+    fontSize: 18,
+    color: '#FF6B9D',
+    fontWeight: 'bold',
+  },
 });
-

@@ -82,7 +82,7 @@ NODE_ENV=production
 ### Step 4: Test API Locally on VPS
 
 ```bash
-# Test the API
+# Test the API 
 cd /var/www/api
 node server.js
 

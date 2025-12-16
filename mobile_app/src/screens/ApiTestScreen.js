@@ -103,7 +103,7 @@ export default function ApiTestScreen() {
             key={index}
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={test.action}
-            disabled={loading}
+            disabled={loading === true}
           >
             <Text style={styles.buttonText}>{test.name}</Text>
           </TouchableOpacity>
