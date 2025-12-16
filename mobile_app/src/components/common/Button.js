@@ -2,19 +2,20 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
 export const Button = ({ title, onPress, style, textStyle, loading, disabled, theme }) => {
+  const isDisabled = Boolean(disabled) || Boolean(loading);
   return (
     <TouchableOpacity
       style={[
         styles.button,
         { backgroundColor: theme.primary },
-        disabled && styles.disabled,
+        isDisabled && styles.disabled,
         style
       ]}
       onPress={onPress}
-      disabled={disabled === true || loading === true}
+      disabled={isDisabled}
       activeOpacity={0.8}
     >
-      {loading ? (
+      {Boolean(loading) ? (
         <ActivityIndicator color="#fff" />
       ) : (
         <Text style={[styles.text, textStyle]}>{title}</Text>

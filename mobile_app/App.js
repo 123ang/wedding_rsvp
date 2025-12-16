@@ -8,23 +8,26 @@ import {
   TextInput,
   Image,
   FlatList,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Alert,
   Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockData } from './src/data/mockData';
 import { themes, defaultTheme } from './src/utils/themes';
 import * as mockApi from './src/services/mockApi';
 import { toBoolean } from './src/utils/booleanUtils';
 import ApiTestScreen from './src/screens/ApiTestScreen';
 import RSVPScreen from './src/screens/RSVPScreen';
+import LoginScreen from './src/screens/LoginScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -37,17 +40,30 @@ const ThemeProvider = ({ children }) => {
   const [currentTheme, setCurrentTheme] = useState(defaultTheme);
 
   useEffect(() => {
+    console.log('[ThemeProvider] mounted, loading theme');
     loadTheme();
   }, []);
 
   const loadTheme = async () => {
-    const themeId = await mockApi.getTheme();
-    setCurrentTheme(themes[themeId] || defaultTheme);
+    try {
+      const themeId = await mockApi.getTheme();
+      console.log('[ThemeProvider] loaded theme id:', themeId);
+      setCurrentTheme(themes[themeId] || defaultTheme);
+      console.log('set current theme')
+    } catch (e) {
+      console.log('[ThemeProvider] getTheme ERROR, using defaultTheme:', e);
+      setCurrentTheme(defaultTheme);
+    }
   };
 
   const changeTheme = async (themeId) => {
-    await mockApi.setTheme(themeId);
-    setCurrentTheme(themes[themeId]);
+    try {
+      console.log('[ThemeProvider] changeTheme called with:', themeId);
+      await mockApi.setTheme(themeId);
+      setCurrentTheme(themes[themeId] || defaultTheme);
+    } catch (e) {
+      console.log('[ThemeProvider] changeTheme ERROR:', e);
+    }
   };
 
   return (
@@ -62,11 +78,29 @@ const SplashScreen = ({ navigation }) => {
   const { theme } = useTheme();
 
   useEffect(() => {
-    mockApi.initializeData();
-    const timer = setTimeout(() => {
-      navigation.replace('Main');
-    }, 2000);
-    return () => clearTimeout(timer);
+    console.log('[Splash] mounted (decide Login/Main)');
+
+    const decideNext = async () => {
+      try {
+        const phone = await AsyncStorage.getItem('user_phone');
+        if (phone) {
+          console.log('[Splash] found stored user_phone, go Main');
+          navigation.replace('Main');
+        } else {
+          console.log('[Splash] no stored user_phone, go Login');
+          navigation.replace('Login');
+        }
+      } catch (e) {
+        console.log('[Splash] error checking user_phone, go Login', e);
+        navigation.replace('Login');
+      }
+    };
+
+    const timer = setTimeout(decideNext, 1500);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, []);
 
   return (
@@ -83,10 +117,28 @@ const SplashScreen = ({ navigation }) => {
   );
 };
 
+// Safe Mode Screen (Android debugging)
+// Keep this UI extremely simple to avoid any boolean/string prop issues.
+const SafeModeScreen = () => {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#000000' }}>Safe Mode</Text>
+      <Text style={{ marginTop: 8, color: '#555555', textAlign: 'center', paddingHorizontal: 24 }}>
+        If you can see this on Android, navigation and basic views are working.
+      </Text>
+    </View>
+  );
+};
+
 // Home Screen
 const HomeScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [countdown, setCountdown] = useState({ days: 365, hours: 12, minutes: 30, seconds: 45 });
+
+  useEffect(() => {
+    console.log('[Home] mounted');
+    return () => console.log('[Home] unmounted');
+  }, []);
 
   const features = [
     { icon: '👔', title: '认识新郎', desc: '了解他的故事', screen: 'GroomProfile' },
@@ -99,8 +151,8 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle="dark-content" hidden={false} translucent={false} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="dark-content" hidden={Boolean(false)} translucent={Boolean(false)} />
+      <ScrollView showsVerticalScrollIndicator={Boolean(false)}>
         {/* Hero Section */}
         <View style={[styles.heroSection, { backgroundColor: theme.gradientStart }]}>
           <Text style={[styles.heroTitle, { color: theme.text }]}>
@@ -155,7 +207,7 @@ const HomeScreen = ({ navigation }) => {
               style={[styles.featureCard, { backgroundColor: '#fff' }]}
               onPress={() => navigation.navigate(feature.screen)}
               activeOpacity={0.7}
-              disabled={false}
+              disabled={Boolean(false)}
             >
               <Text style={styles.featureIcon}>{feature.icon}</Text>
               <Text style={[styles.featureTitle, { color: theme.text }]}>{feature.title}</Text>
@@ -392,8 +444,8 @@ const PhotoFeedScreen = ({ navigation }) => {
         data={photos}
         renderItem={renderPhoto}
         keyExtractor={item => item.id.toString()}
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={false}
+        showsVerticalScrollIndicator={Boolean(false)}
+        removeClippedSubviews={Boolean(false)}
       />
     </SafeAreaView>
   );
@@ -676,7 +728,7 @@ const PhotoUploadScreen = ({ navigation }) => {
             style={[styles.captionInput, { borderColor: theme.secondary, color: theme.text }]}
             placeholder="分享这一刻的感受..."
             placeholderTextColor={theme.textLight}
-            multiline={true}
+            multiline={Boolean(true)}
             numberOfLines={4}
             value={caption}
             onChangeText={setCaption}
@@ -687,7 +739,7 @@ const PhotoUploadScreen = ({ navigation }) => {
         <TouchableOpacity
           style={[styles.uploadButton, { backgroundColor: theme.primary }]}
           onPress={handleUpload}
-          disabled={uploading === true}
+          disabled={Boolean(uploading === true)}
         >
           {uploading ? (
             <ActivityIndicator color="#fff" />
@@ -710,6 +762,11 @@ const Tab = createBottomTabNavigator();
 const MainTabs = () => {
   const { theme } = useTheme();
 
+  useEffect(() => {
+    console.log('[MainTabs] mounted');
+    return () => console.log('[MainTabs] unmounted');
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -729,8 +786,8 @@ const MainTabs = () => {
         headerStyle: { backgroundColor: theme.gradientStart },
         headerTintColor: theme.primary,
         headerTitleStyle: { fontWeight: 'bold' },
-        lazy: false,
-        tabBarHideOnKeyboard: false
+        lazy: Boolean(false),
+        tabBarHideOnKeyboard: Boolean(false)
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '首页', headerTitle: `${mockData.weddingInfo.groomShortName} ♥ ${mockData.weddingInfo.brideShortName} Wedding` }} />
@@ -1006,139 +1063,64 @@ const ThemeSelectionScreen = () => {
   );
 };
 
-// Main App
+// Simple root content component used for step-by-step debugging
+const PlainRootScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#000000' }}>Plain Root Screen</Text>
+    <Text style={{ marginTop: 8, color: '#555555', textAlign: 'center', paddingHorizontal: 24 }}>
+      If you can see this, the crash is not in basic React Native views.
+    </Text>
+  </View>
+);
+
+// Main App – ThemeProvider + Stack with Splash → Main (real app)
 export default function App() {
+  useEffect(() => {
+    console.log('[App] root mounted (Splash -> Login/Main stack)');
+  }, []);
+
   return (
     <ThemeProvider>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: true }}>
+        <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen
             name="GroomProfile"
             component={GroomProfileScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '认识新郎',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="BrideProfile"
             component={BrideProfileScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '认识新娘',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="PhotoDetail"
             component={PhotoDetailScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '照片',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="PhotoUpload"
             component={PhotoUploadScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '分享照片',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="Videos"
             component={VideosScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '视频',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="Timeline"
             component={TimelineScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '婚礼流程',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="ThemeSelection"
             component={ThemeSelectionScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: '主题颜色',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="ApiTest"
             component={ApiTestScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: 'API 测试',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
           <Stack.Screen
             name="RSVP"
             component={RSVPScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              animationEnabled: true,
-              title: 'RSVP',
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </TouchableOpacity>
-              )
-            })}
           />
         </Stack.Navigator>
       </NavigationContainer>

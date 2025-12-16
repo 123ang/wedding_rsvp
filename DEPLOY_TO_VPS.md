@@ -168,7 +168,7 @@ echo "Building frontend..."
 npm run build
 
 echo "Uploading to VPS..."
-scp -r dist/* user@your-vps:/var/www/jsang-psong-wedding.com/
+scp -r dist/* /var/www/jsang-psong-wedding.com/
 scp -r api user@your-vps:/var/www/jsang-psong-wedding.com/
 
 echo "Setting permissions..."

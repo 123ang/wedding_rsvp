@@ -103,7 +103,7 @@ export default function ApiTestScreen() {
             key={index}
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={test.action}
-            disabled={loading === true}
+            disabled={Boolean(loading)}
           >
             <Text style={styles.buttonText}>{test.name}</Text>
           </TouchableOpacity>
@@ -119,7 +119,7 @@ export default function ApiTestScreen() {
 
       <View style={styles.resultContainer}>
         <Text style={styles.resultTitle}>Result:</Text>
-        <ScrollView style={styles.resultScroll} nestedScrollEnabled>
+        <ScrollView style={styles.resultScroll} nestedScrollEnabled={Boolean(true)}>
           <Text style={styles.resultText}>{result || 'No result yet. Run a test above.'}</Text>
         </ScrollView>
       </View>

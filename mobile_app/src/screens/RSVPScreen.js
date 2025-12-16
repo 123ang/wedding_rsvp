@@ -40,8 +40,8 @@ const SimpleSelect = ({ value, options, onValueChange, placeholder }) => {
       </TouchableOpacity>
       
       <Modal
-        visible={modalVisible}
-        transparent={true}
+        visible={Boolean(modalVisible)}
+        transparent={Boolean(true)}
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
@@ -288,7 +288,7 @@ export default function RSVPScreen({ navigation, route }) {
               placeholder="有什么想告诉我们的吗？"
               value={formData.remark}
               onChangeText={(text) => updateField('remark', text)}
-              multiline={true}
+              multiline={Boolean(true)}
               numberOfLines={4}
               textAlignVertical="top"
             />
@@ -298,7 +298,7 @@ export default function RSVPScreen({ navigation, route }) {
           <TouchableOpacity
             style={[styles.submitButton, loading === true && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading === true}
+            disabled={Boolean(loading)}
           >
             {loading === true ? (
               <ActivityIndicator color="white" />
