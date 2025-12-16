@@ -421,6 +421,52 @@
   background: #c82333;
 }
 
+/* Relationship Dropdown */
+.relationship-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #FF6B9D;
+  border-top: none;
+  border-radius: 0 0 5px 5px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: -2px;
+}
+
+.relationship-option {
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  color: #333;
+}
+
+.relationship-option:hover {
+  background: #f0f0f0;
+}
+
+.relationship-option:first-child {
+  border-top: 1px solid #e0e0e0;
+}
+
+/* Remark textarea styling */
+.payment-edit-cell textarea {
+  width: 200px;
+  min-width: 150px;
+  max-width: 300px;
+  padding: 8px 10px;
+  border: 2px solid #FF6B9D;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .admin-dashboard {

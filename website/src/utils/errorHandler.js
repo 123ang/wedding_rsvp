@@ -28,7 +28,8 @@ export const logError = (error, context = '') => {
   console.error(`Error in ${context}:`, error);
   
   // In production, you might want to send errors to a logging service
-  if (process.env.NODE_ENV === 'production') {
+  // Vite uses import.meta.env.PROD instead of process.env.NODE_ENV
+  if (import.meta.env.PROD) {
     // Example: send to error tracking service
     // errorTrackingService.log(error, context);
   }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllRSVPs, updatePaymentAmount, updateSeatTable, checkAdminAuth, adminLogout } from '../services/api';
+import { getAllRSVPs, updatePaymentAmount, updateSeatTable, updateRelationship, updateRemark, getRelationships, checkAdminAuth, adminLogout } from '../services/api';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -15,12 +15,42 @@ const AdminDashboard = () => {
   const [attendingFilter, setAttendingFilter] = useState('all'); // 'all', 'attending', 'not-attending'
   const [editingPayment, setEditingPayment] = useState({ id: null, type: null, value: '' });
   const [editingSeat, setEditingSeat] = useState({ id: null, type: null, value: '' });
+  const [editingRelationship, setEditingRelationship] = useState({ id: null, type: null, value: '' });
+  const [editingRemark, setEditingRemark] = useState({ id: null, type: null, value: '' });
+  const [availableRelationships, setAvailableRelationships] = useState([]);
+  const [showRelationshipDropdown, setShowRelationshipDropdown] = useState({ id: null, show: false });
   const navigate = useNavigate();
 
   useEffect(() => {
     checkAuth();
     fetchRSVPs();
+    fetchRelationships();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showRelationshipDropdown.show && !event.target.closest('.payment-edit-cell')) {
+        setShowRelationshipDropdown({ id: null, show: false });
+      }
+    };
+
+    if (showRelationshipDropdown.show) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showRelationshipDropdown.show]);
+
+  const fetchRelationships = async () => {
+    try {
+      const relationships = await getRelationships();
+      setAvailableRelationships(relationships);
+    } catch (error) {
+      console.error('Failed to fetch relationships:', error);
+    }
+  };
 
   const checkAuth = () => {
     const authResult = checkAdminAuth();
@@ -64,7 +94,7 @@ const AdminDashboard = () => {
 
   const handleExportToExcel = () => {
     // Create CSV content
-    const headers = ['Name', 'Email', 'Phone', 'Wedding Type', 'Attending', 'Number of Guests', 'Table', 'Payment Amount', 'Created At'];
+    const headers = ['Name', 'Email', 'Phone', 'Wedding Type', 'Attending', 'Number of Guests', 'Table', 'Payment Amount', 'Relationship', 'Remark', 'Created At'];
     const csvContent = [
       headers.join(','),
       ...filteredRsvps.map(rsvp => [
@@ -76,6 +106,8 @@ const AdminDashboard = () => {
         rsvp.number_of_guests,
         `"${rsvp.seat_table || ''}"`,
         rsvp.payment_amount.toFixed(2),
+        `"${rsvp.relationship || ''}"`,
+        `"${rsvp.remark || ''}"`,
         new Date(rsvp.created_at).toLocaleString()
       ].join(','))
     ].join('\n');
@@ -158,6 +190,66 @@ const AdminDashboard = () => {
     setEditingSeat({ id: null, type: null, value: '' });
   };
 
+  // Relationship handlers
+  const handleRelationshipEdit = (id, type, currentRelationship) => {
+    setEditingRelationship({ id, type, value: (currentRelationship || '').toString() });
+    setShowRelationshipDropdown({ id, show: false });
+  };
+
+  const handleRelationshipChange = (e) => {
+    setEditingRelationship({ ...editingRelationship, value: e.target.value });
+    setShowRelationshipDropdown({ id: editingRelationship.id, show: true });
+  };
+
+  const handleRelationshipSelect = (relationship) => {
+    setEditingRelationship({ ...editingRelationship, value: relationship });
+    setShowRelationshipDropdown({ id: null, show: false });
+  };
+
+  const handleRelationshipUpdate = async () => {
+    const { id, value } = editingRelationship;
+    try {
+      await updateRelationship(id, value.trim() || null);
+      await fetchRSVPs();
+      await fetchRelationships(); // Refresh relationships list
+      setEditingRelationship({ id: null, type: null, value: '' });
+      setShowRelationshipDropdown({ id: null, show: false });
+    } catch (err) {
+      console.error('Update relationship error:', err);
+      alert('An error occurred while updating relationship');
+    }
+  };
+
+  const handleRelationshipCancel = () => {
+    setEditingRelationship({ id: null, type: null, value: '' });
+    setShowRelationshipDropdown({ id: null, show: false });
+  };
+
+  // Remark handlers
+  const handleRemarkEdit = (id, type, currentRemark) => {
+    setEditingRemark({ id, type, value: (currentRemark || '').toString() });
+  };
+
+  const handleRemarkChange = (e) => {
+    setEditingRemark({ ...editingRemark, value: e.target.value });
+  };
+
+  const handleRemarkUpdate = async () => {
+    const { id, value } = editingRemark;
+    try {
+      await updateRemark(id, value.trim() || null);
+      await fetchRSVPs();
+      setEditingRemark({ id: null, type: null, value: '' });
+    } catch (err) {
+      console.error('Update remark error:', err);
+      alert('An error occurred while updating remark');
+    }
+  };
+
+  const handleRemarkCancel = () => {
+    setEditingRemark({ id: null, type: null, value: '' });
+  };
+
   // Filter and search logic
   const filteredRsvps = rsvps.filter(rsvp => {
     // Filter by tab (bride or groom)
@@ -171,7 +263,9 @@ const AdminDashboard = () => {
     if (searchTerm &&
         !rsvp.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
         !rsvp.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !(rsvp.seat_table || '').toLowerCase().includes(searchTerm.toLowerCase())) {
+        !(rsvp.seat_table || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !(rsvp.relationship || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !(rsvp.remark || '').toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     
@@ -315,12 +409,14 @@ const AdminDashboard = () => {
               <th>Guests</th>
               <th>Table</th>
               <th>Payment</th>
+              <th>Relationship</th>
+              <th>Remark</th>
             </tr>
           </thead>
           <tbody>
             {filteredRsvps.length === 0 ? (
               <tr>
-                <td colSpan="5" className="no-data">No RSVPs found</td>
+                <td colSpan="7" className="no-data">No RSVPs found</td>
               </tr>
             ) : (
               filteredRsvps.map((rsvp) => (
@@ -405,6 +501,102 @@ const AdminDashboard = () => {
                           onClick={() => handlePaymentEdit(rsvp.id, rsvp.type, rsvp.payment_amount)}
                           className="edit-payment-btn"
                           title="Edit payment"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td data-label="Relationship">
+                    {editingRelationship.id === rsvp.id && editingRelationship.type === rsvp.type ? (
+                      <div className="payment-edit-cell" style={{ position: 'relative' }}>
+                        <input
+                          type="text"
+                          value={editingRelationship.value}
+                          onChange={handleRelationshipChange}
+                          onFocus={() => setShowRelationshipDropdown({ id: rsvp.id, show: true })}
+                          className="payment-input"
+                          placeholder="e.g. Friend, Family"
+                          list={`relationship-list-${rsvp.id}`}
+                        />
+                        {showRelationshipDropdown.id === rsvp.id && showRelationshipDropdown.show && availableRelationships.length > 0 && (
+                          <div className="relationship-dropdown">
+                            {availableRelationships
+                              .filter(rel => rel.toLowerCase().includes(editingRelationship.value.toLowerCase()))
+                              .map((rel, idx) => (
+                                <div
+                                  key={idx}
+                                  className="relationship-option"
+                                  onClick={() => handleRelationshipSelect(rel)}
+                                >
+                                  {rel}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                        <div className="payment-edit-buttons">
+                          <button 
+                            onClick={handleRelationshipUpdate}
+                            className="payment-save-btn"
+                          >
+                            ✓
+                          </button>
+                          <button 
+                            onClick={handleRelationshipCancel}
+                            className="payment-cancel-btn"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="payment-cell">
+                        <span>{rsvp.relationship || '-'}</span>
+                        <button
+                          onClick={() => handleRelationshipEdit(rsvp.id, rsvp.type, rsvp.relationship)}
+                          className="edit-payment-btn"
+                          title="Edit relationship"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td data-label="Remark">
+                    {editingRemark.id === rsvp.id && editingRemark.type === rsvp.type ? (
+                      <div className="payment-edit-cell">
+                        <textarea
+                          value={editingRemark.value}
+                          onChange={handleRemarkChange}
+                          className="payment-input"
+                          placeholder="Add remark..."
+                          rows="2"
+                          style={{ resize: 'vertical', minHeight: '40px' }}
+                        />
+                        <div className="payment-edit-buttons">
+                          <button 
+                            onClick={handleRemarkUpdate}
+                            className="payment-save-btn"
+                          >
+                            ✓
+                          </button>
+                          <button 
+                            onClick={handleRemarkCancel}
+                            className="payment-cancel-btn"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="payment-cell">
+                        <span style={{ whiteSpace: 'pre-wrap', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {rsvp.remark || '-'}
+                        </span>
+                        <button
+                          onClick={() => handleRemarkEdit(rsvp.id, rsvp.type, rsvp.remark)}
+                          className="edit-payment-btn"
+                          title="Edit remark"
                         >
                           ✏️
                         </button>

@@ -122,22 +122,22 @@ export const mockData = {
   // Seats
   seats: [
     // Table 1
-    { id: 1, tableNumber: 1, seatNumber: 1, guestName: "张三", guestPhone: "+60123456789", occupied: true, isMyS eat: false },
-    { id: 2, tableNumber: 1, seatNumber: 2, guestName: "李四", guestPhone: "+60123456788", occupied: true, isMyS eat: false },
-    { id: 3, tableNumber: 1, seatNumber: 3, guestName: "王五", guestPhone: "+60123456787", occupied: true, isMyS eat: false },
-    { id: 4, tableNumber: 1, seatNumber: 4, guestName: "赵六", guestPhone: "+60123456786", occupied: true, isMyS eat: false },
-    { id: 5, tableNumber: 1, seatNumber: 5, guestName: "孙七", guestPhone: "+60123456785", occupied: true, isMyS eat: false },
-    { id: 6, tableNumber: 1, seatNumber: 6, guestName: "周八", guestPhone: "+60123456784", occupied: true, isMyS eat: false },
-    { id: 7, tableNumber: 1, seatNumber: 7, guestName: "吴九", guestPhone: "+60123456783", occupied: true, isMyS eat: false },
-    { id: 8, tableNumber: 1, seatNumber: 8, guestName: "郑十", guestPhone: "+60123456782", occupied: true, isMyS eat: false },
+    { id: 1, tableNumber: 1, seatNumber: 1, guestName: "张三", guestPhone: "+60123456789", occupied: true, isMySeat: false },
+    { id: 2, tableNumber: 1, seatNumber: 2, guestName: "李四", guestPhone: "+60123456788", occupied: true, isMySeat: false },
+    { id: 3, tableNumber: 1, seatNumber: 3, guestName: "王五", guestPhone: "+60123456787", occupied: true, isMySeat: false },
+    { id: 4, tableNumber: 1, seatNumber: 4, guestName: "赵六", guestPhone: "+60123456786", occupied: true, isMySeat: false },
+    { id: 5, tableNumber: 1, seatNumber: 5, guestName: "孙七", guestPhone: "+60123456785", occupied: true, isMySeat: false },
+    { id: 6, tableNumber: 1, seatNumber: 6, guestName: "周八", guestPhone: "+60123456784", occupied: true, isMySeat: false },
+    { id: 7, tableNumber: 1, seatNumber: 7, guestName: "吴九", guestPhone: "+60123456783", occupied: true, isMySeat: false },
+    { id: 8, tableNumber: 1, seatNumber: 8, guestName: "郑十", guestPhone: "+60123456782", occupied: true, isMySeat: false },
     // Table 2
-    { id: 9, tableNumber: 2, seatNumber: 9, guestName: "陈一", guestPhone: "+60123456781", occupied: true, isMyS eat: false },
-    { id: 10, tableNumber: 2, seatNumber: 10, guestName: "林二", guestPhone: "+60123456780", occupied: true, isMyS eat: false },
-    { id: 11, tableNumber: 2, seatNumber: 11, guestName: "黄三", guestPhone: "+60123456779", occupied: true, isMyS eat: false },
+    { id: 9, tableNumber: 2, seatNumber: 9, guestName: "陈一", guestPhone: "+60123456781", occupied: true, isMySeat: false },
+    { id: 10, tableNumber: 2, seatNumber: 10, guestName: "林二", guestPhone: "+60123456780", occupied: true, isMySeat: false },
+    { id: 11, tableNumber: 2, seatNumber: 11, guestName: "黄三", guestPhone: "+60123456779", occupied: true, isMySeat: false },
     { id: 12, tableNumber: 2, seatNumber: 12, guestName: "", guestPhone: "", occupied: false, isMySeat: false },
     // Table 3
     { id: 13, tableNumber: 3, seatNumber: 13, guestName: "您", guestPhone: "+60164226901", occupied: true, isMySeat: true },
-    { id: 14, tableNumber: 3, seatNumber: 14, guestName: "刘四", guestPhone: "+60123456778", occupied: true, isMyS eat: false },
+    { id: 14, tableNumber: 3, seatNumber: 14, guestName: "刘四", guestPhone: "+60123456778", occupied: true, isMySeat: false },
     { id: 15, tableNumber: 3, seatNumber: 15, guestName: "", guestPhone: "", occupied: false, isMySeat: false },
     { id: 16, tableNumber: 3, seatNumber: 16, guestName: "", guestPhone: "", occupied: false, isMySeat: false }
   ],

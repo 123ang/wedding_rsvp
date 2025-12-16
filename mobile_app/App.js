@@ -22,6 +22,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { mockData } from './src/data/mockData';
 import { themes, defaultTheme } from './src/utils/themes';
 import * as mockApi from './src/services/mockApi';
+import ApiTestScreen from './src/screens/ApiTestScreen';
+import RSVPScreen from './src/screens/RSVPScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -125,6 +127,23 @@ const HomeScreen = ({ navigation }) => {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* RSVP Buttons */}
+        <View style={styles.rsvpSection}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>确认出席</Text>
+          <TouchableOpacity
+            style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
+            onPress={() => navigation.navigate('RSVP', { type: 'bride' })}
+          >
+            <Text style={styles.rsvpButtonText}>👰 新娘婚礼 RSVP</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.rsvpButton, { backgroundColor: theme.accent }]}
+            onPress={() => navigation.navigate('RSVP', { type: 'groom' })}
+          >
+            <Text style={styles.rsvpButtonText}>👔 新郎婚礼 RSVP</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Features Grid */}
@@ -833,6 +852,7 @@ const SettingsScreen = ({ navigation }) => {
   const { theme } = useTheme();
 
   const settings = [
+    { icon: 'flask', title: 'API 测试', desc: '测试服务器连接', screen: 'ApiTest' },
     { icon: 'notifications', title: '通知设置', desc: '管理推送通知', screen: null },
     { icon: 'color-palette', title: '主题颜色', desc: theme.name, screen: 'ThemeSelection' },
     { icon: 'language', title: '语言', desc: '中文（简体）', screen: null },
@@ -1012,6 +1032,32 @@ export default function App() {
               )
             })}
           />
+          <Stack.Screen
+            name="ApiTest"
+            component={ApiTestScreen}
+            options={({ navigation }) => ({
+              headerShown: true,
+              title: 'API 测试',
+              headerLeft: () => (
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+                  <Ionicons name="arrow-back" size={24} color="#000" />
+                </TouchableOpacity>
+              )
+            })}
+          />
+          <Stack.Screen
+            name="RSVP"
+            component={RSVPScreen}
+            options={({ navigation }) => ({
+              headerShown: true,
+              title: 'RSVP',
+              headerLeft: () => (
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+                  <Ionicons name="arrow-back" size={24} color="#000" />
+                </TouchableOpacity>
+              )
+            })}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </ThemeProvider>
@@ -1104,6 +1150,32 @@ const styles = StyleSheet.create({
   },
   countdownLabel: {
     fontSize: 14
+  },
+  rsvpSection: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  rsvpButton: {
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  rsvpButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   featuresGrid: {
     flexDirection: 'row',

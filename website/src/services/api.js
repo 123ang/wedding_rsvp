@@ -1,17 +1,29 @@
 import axios from 'axios';
 import { handleApiError } from '../utils/errorHandler';
-import { SUPABASE_URL, getSupabaseHeaders } from '../config/supabase';
+import { API_BASE_URL } from '../config/api';
 
-// Supabase REST API client
-const supabaseClient = axios.create({
-  baseURL: `${SUPABASE_URL}/rest/v1`,
+// API client
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
   timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Add request interceptor
-supabaseClient.interceptors.request.use(
+apiClient.interceptors.request.use(
   (config) => {
-    console.log('Making Supabase request:', config.url);
+    // Add admin auth headers if available
+    const adminEmail = localStorage.getItem('admin_email');
+    const adminId = localStorage.getItem('admin_id');
+    
+    if (adminEmail && adminId) {
+      config.headers['x-admin-email'] = adminEmail;
+      config.headers['x-admin-id'] = adminId;
+    }
+    
+    console.log('Making API request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {
@@ -21,9 +33,9 @@ supabaseClient.interceptors.request.use(
 );
 
 // Add response interceptor
-supabaseClient.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => {
-    console.log('Supabase response:', response.status);
+    console.log('API response:', response.status);
     return response;
   },
   (error) => {
@@ -34,43 +46,17 @@ supabaseClient.interceptors.response.use(
 
 export const submitBrideRSVP = async (formData) => {
   try {
-    // Check if email already exists for bride wedding
-    const checkResponse = await supabaseClient.get('/rsvps', {
-      headers: getSupabaseHeaders(),
-      params: {
-        email: `eq.${formData.email}`,
-        wedding_type: 'eq.bride',
-        select: 'id'
-      }
-    });
-
-    if (checkResponse.data && checkResponse.data.length > 0) {
-      throw {
-        response: {
-          status: 409,
-          data: {
-            message: "This email has already submitted an RSVP for the bride's wedding.",
-            success: false
-          }
-        }
-      };
-    }
-
-    // Insert new RSVP
-    const response = await supabaseClient.post('/rsvps', {
+    const response = await apiClient.post('/bride-rsvp', {
       name: formData.name,
       email: formData.email,
       phone: formData.phone || null,
       attending: formData.attending,
-      number_of_guests: formData.number_of_guests,
-      wedding_type: 'bride'
-    }, {
-      headers: getSupabaseHeaders()
+      number_of_guests: formData.number_of_guests
     });
 
     return {
-      message: "RSVP submitted successfully.",
-      success: true,
+      message: response.data.message || "RSVP submitted successfully.",
+      success: response.data.success !== false,
       data: response.data
     };
   } catch (error) {
@@ -87,43 +73,18 @@ export const submitBrideRSVP = async (formData) => {
 
 export const submitGroomRSVP = async (formData) => {
   try {
-    // Check if email already exists for groom wedding
-    const checkResponse = await supabaseClient.get('/rsvps', {
-      headers: getSupabaseHeaders(),
-      params: {
-        email: `eq.${formData.email}`,
-        wedding_type: 'eq.groom',
-        select: 'id'
-      }
-    });
-
-    if (checkResponse.data && checkResponse.data.length > 0) {
-      throw {
-        response: {
-          status: 409,
-          data: {
-            message: "This email has already submitted an RSVP for the groom's wedding.",
-            success: false
-          }
-        }
-      };
-    }
-
-    // Insert new RSVP
-    const response = await supabaseClient.post('/rsvps', {
+    const response = await apiClient.post('/groom-rsvp', {
       name: formData.name,
       email: formData.email,
       phone: formData.phone || null,
       attending: formData.attending,
       number_of_guests: formData.number_of_guests,
-      wedding_type: 'groom'
-    }, {
-      headers: getSupabaseHeaders()
+      organization: formData.organization || null
     });
 
     return {
-      message: "RSVP submitted successfully.",
-      success: true,
+      message: response.data.message || "RSVP submitted successfully.",
+      success: response.data.success !== false,
       data: response.data
     };
   } catch (error) {
@@ -141,50 +102,27 @@ export const submitGroomRSVP = async (formData) => {
 // Admin authentication
 export const adminLogin = async (email, password) => {
   try {
-    // Query admin_users table
-    const response = await supabaseClient.get('/admin_users', {
-      headers: getSupabaseHeaders(),
-      params: {
-        email: `eq.${email}`,
-        select: 'id,email,password'
-      }
+    const response = await apiClient.post('/admin/login', {
+      email,
+      password
     });
 
-    if (!response.data || response.data.length === 0) {
-      throw {
-        response: {
-          status: 401,
-          data: {
-            message: "Invalid credentials.",
-            success: false
-          }
-        }
-      };
-    }
-
-    const user = response.data[0];
-    
-    // Simple password check (in production, use proper bcrypt verification)
-    if (
-      (email === 'angjinsheng@gmail.com' && password === '920214') ||
-      (email === 'psong32@hotmail.com' && password === '921119') ||
-      (email === 'jasonang1668@gmail.com' && password === '123456')
-    ) {
+    if (response.data.success) {
       // Store admin session in localStorage
-      localStorage.setItem('admin_email', user.email);
-      localStorage.setItem('admin_id', user.id);
+      localStorage.setItem('admin_email', response.data.email);
+      localStorage.setItem('admin_id', response.data.id);
       
       return {
-        message: "Login successful.",
+        message: response.data.message || "Login successful.",
         success: true,
-        email: user.email
+        email: response.data.email
       };
     } else {
       throw {
         response: {
           status: 401,
           data: {
-            message: "Invalid credentials.",
+            message: response.data.message || "Invalid credentials.",
             success: false
           }
         }
@@ -216,44 +154,8 @@ export const getAllRSVPs = async () => {
       };
     }
 
-    const response = await supabaseClient.get('/rsvps', {
-      headers: getSupabaseHeaders(),
-      params: {
-        select: '*',
-        order: 'created_at.desc'
-      }
-    });
-
-    const rsvps = response.data.map(rsvp => ({
-      type: rsvp.wedding_type,
-      id: rsvp.id,
-      name: rsvp.name,
-      email: rsvp.email,
-      phone: rsvp.phone,
-      attending: rsvp.attending,
-      number_of_guests: rsvp.number_of_guests,
-      seat_table: rsvp.seat_table || '',
-      payment_amount: parseFloat(rsvp.payment_amount || 0),
-      created_at: rsvp.created_at
-    }));
-
-    // Calculate totals
-    const totalAttending = rsvps.filter(r => r.attending).length;
-    const totalNotAttending = rsvps.filter(r => !r.attending).length;
-    const totalGuests = rsvps.filter(r => r.attending).reduce((sum, r) => sum + r.number_of_guests, 0);
-    const totalPayment = rsvps.reduce((sum, r) => sum + r.payment_amount, 0);
-
-    return {
-      success: true,
-      rsvps,
-      summary: {
-        total_rsvps: rsvps.length,
-        total_attending: totalAttending,
-        total_not_attending: totalNotAttending,
-        total_guests: totalGuests,
-        total_payment: totalPayment
-      }
-    };
+    const response = await apiClient.get('/admin/rsvps');
+    return response.data;
   } catch (error) {
     console.error('Get RSVPs error:', error);
     throw error.response?.data || {
@@ -279,15 +181,14 @@ export const updatePaymentAmount = async (id, paymentAmount) => {
       };
     }
 
-    const response = await supabaseClient.patch(`/rsvps?id=eq.${id}`, {
+    const response = await apiClient.post('/admin/update-payment', {
+      id,
       payment_amount: paymentAmount
-    }, {
-      headers: getSupabaseHeaders()
     });
 
     return {
-      message: "Payment amount updated successfully.",
-      success: true,
+      message: response.data.message || "Payment amount updated successfully.",
+      success: response.data.success !== false,
       data: response.data
     };
   } catch (error) {
@@ -315,15 +216,14 @@ export const updateSeatTable = async (id, seatTable) => {
       };
     }
 
-    const response = await supabaseClient.patch(`/rsvps?id=eq.${id}`, {
+    const response = await apiClient.post('/admin/update-seat', {
+      id,
       seat_table: seatTable || null
-    }, {
-      headers: getSupabaseHeaders()
     });
 
     return {
-      message: "Seat table updated successfully.",
-      success: true,
+      message: response.data.message || "Seat table updated successfully.",
+      success: response.data.success !== false,
       data: response.data
     };
   } catch (error) {
@@ -332,6 +232,100 @@ export const updateSeatTable = async (id, seatTable) => {
       message: error.response?.data?.message || "Failed to update seat table.",
       success: false
     };
+  }
+};
+
+// Update relationship (admin only)
+export const updateRelationship = async (id, relationship) => {
+  try {
+    const adminEmail = localStorage.getItem('admin_email');
+    if (!adminEmail) {
+      throw {
+        response: {
+          status: 401,
+          data: {
+            message: "Unauthorized access.",
+            success: false
+          }
+        }
+      };
+    }
+
+    const response = await apiClient.post('/admin/update-relationship', {
+      id,
+      relationship: relationship || null
+    });
+
+    return {
+      message: response.data.message || "Relationship updated successfully.",
+      success: response.data.success !== false,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('Update relationship error:', error);
+    throw {
+      message: error.response?.data?.message || "Failed to update relationship.",
+      success: false
+    };
+  }
+};
+
+// Update remark (admin only)
+export const updateRemark = async (id, remark) => {
+  try {
+    const adminEmail = localStorage.getItem('admin_email');
+    if (!adminEmail) {
+      throw {
+        response: {
+          status: 401,
+          data: {
+            message: "Unauthorized access.",
+            success: false
+          }
+        }
+      };
+    }
+
+    const response = await apiClient.post('/admin/update-remark', {
+      id,
+      remark: remark || null
+    });
+
+    return {
+      message: response.data.message || "Remark updated successfully.",
+      success: response.data.success !== false,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('Update remark error:', error);
+    throw {
+      message: error.response?.data?.message || "Failed to update remark.",
+      success: false
+    };
+  }
+};
+
+// Get unique relationships (admin only)
+export const getRelationships = async () => {
+  try {
+    const adminEmail = localStorage.getItem('admin_email');
+    if (!adminEmail) {
+      throw {
+        response: {
+          status: 401,
+          data: {
+            message: "Unauthorized access.",
+            success: false
+          }
+        }
+      };
+    }
+
+    const response = await apiClient.get('/admin/relationships');
+    return response.data.relationships || [];
+  } catch (error) {
+    console.error('Get relationships error:', error);
+    return [];
   }
 };
 
@@ -354,5 +348,5 @@ export const checkAdminAuth = () => {
   };
 };
 
-export default supabaseClient;
+export default apiClient;
 
