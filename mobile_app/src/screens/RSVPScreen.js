@@ -174,6 +174,7 @@ export default function RSVPScreen({ navigation, route }) {
                 selectedValue={formData.number_of_guests}
                 onValueChange={(value) => updateField('number_of_guests', value)}
                 style={styles.picker}
+                enabled={true}
               >
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                   <Picker.Item key={num} label={`${num} 人`} value={num.toString()} />
@@ -190,6 +191,7 @@ export default function RSVPScreen({ navigation, route }) {
                 selectedValue={formData.organization}
                 onValueChange={(value) => updateField('organization', value)}
                 style={styles.picker}
+                enabled={true}
               >
                 <Picker.Item label="请选择" value="" />
                 <Picker.Item label="新郎同事" value="新郎同事" />

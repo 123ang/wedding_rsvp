@@ -46,9 +46,28 @@ export const getPhotos = async () => {
   await delay();
   try {
     const photos = await AsyncStorage.getItem(STORAGE_KEYS.PHOTOS);
-    return photos ? JSON.parse(photos) : mockData.photos;
+    const parsedPhotos = photos ? JSON.parse(photos) : mockData.photos;
+    // Ensure all boolean values are actual booleans, not strings
+    return parsedPhotos.map(photo => ({
+      ...photo,
+      likedByMe: photo.likedByMe === true || photo.likedByMe === 'true' || photo.likedByMe === 1,
+      savedByMe: photo.savedByMe === true || photo.savedByMe === 'true' || photo.savedByMe === 1,
+      comments: photo.comments ? photo.comments.map(comment => ({
+        ...comment,
+        likedByMe: comment.likedByMe === true || comment.likedByMe === 'true' || comment.likedByMe === 1,
+      })) : [],
+    }));
   } catch (error) {
-    return mockData.photos;
+    // Also normalize mockData.photos
+    return mockData.photos.map(photo => ({
+      ...photo,
+      likedByMe: photo.likedByMe === true || photo.likedByMe === 'true' || photo.likedByMe === 1,
+      savedByMe: photo.savedByMe === true || photo.savedByMe === 'true' || photo.savedByMe === 1,
+      comments: photo.comments ? photo.comments.map(comment => ({
+        ...comment,
+        likedByMe: comment.likedByMe === true || comment.likedByMe === 'true' || comment.likedByMe === 1,
+      })) : [],
+    }));
   }
 };
 
@@ -236,9 +255,20 @@ export const getSeats = async () => {
   await delay();
   try {
     const seats = await AsyncStorage.getItem(STORAGE_KEYS.SEATS);
-    return seats ? JSON.parse(seats) : mockData.seats;
+    const parsedSeats = seats ? JSON.parse(seats) : mockData.seats;
+    // Ensure all boolean values are actual booleans, not strings
+    return parsedSeats.map(seat => ({
+      ...seat,
+      occupied: seat.occupied === true || seat.occupied === 'true' || seat.occupied === 1,
+      isMySeat: seat.isMySeat === true || seat.isMySeat === 'true' || seat.isMySeat === 1,
+    }));
   } catch (error) {
-    return mockData.seats;
+    // Also normalize mockData.seats
+    return mockData.seats.map(seat => ({
+      ...seat,
+      occupied: seat.occupied === true || seat.occupied === 'true' || seat.occupied === 1,
+      isMySeat: seat.isMySeat === true || seat.isMySeat === 'true' || seat.isMySeat === 1,
+    }));
   }
 };
 
