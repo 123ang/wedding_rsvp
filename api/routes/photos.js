@@ -74,9 +74,12 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
 
     // Get photos with like and comment counts
-    // Use pool.query (text protocol) to avoid prepared-statement LIMIT/OFFSET issues
-    const [photos] = await pool.query(
-      `SELECT 
+    // Use string interpolation for LIMIT/OFFSET to avoid prepared statement issues
+    // Sanitize limit and offset to prevent SQL injection
+    const safeLimit = Math.max(1, Math.min(parseInt(limit) || 20, 100));
+    const safeOffset = Math.max(0, parseInt(offset) || 0);
+    
+    const query = `SELECT 
         p.id,
         p.user_name,
         p.user_phone,
@@ -88,11 +91,13 @@ router.get('/', async (req, res) => {
       FROM photos p
       LEFT JOIN likes l ON l.photo_id = p.id
       LEFT JOIN comments c ON c.photo_id = p.id
-      GROUP BY p.id
+      GROUP BY p.id, p.user_name, p.user_phone, p.image_url, p.caption, p.created_at
       ORDER BY p.created_at DESC
-      LIMIT ? OFFSET ?`,
-      [limit, offset]
-    );
+      LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+    
+    console.log('[Photos] Executing query with limit:', safeLimit, 'offset:', safeOffset);
+    const [photos] = await pool.query(query);
+    console.log('[Photos] Query returned', photos.length, 'photos');
 
     // Get tags for each photo
     for (let photo of photos) {

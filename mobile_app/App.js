@@ -595,8 +595,16 @@ const PhotoFeedScreen = ({ navigation }) => {
     }
     try {
       const userPhone = await AsyncStorage.getItem('user_phone');
+      console.log('[PhotoFeed] Loading photos, userPhone:', userPhone ? `${userPhone.substring(0, 3)}***` : 'none');
       const response = await realApi.getPhotos(1, 20, userPhone);
+      console.log('[PhotoFeed] API response:', {
+        isArray: Array.isArray(response),
+        hasPhotos: !!(response.photos),
+        photosCount: response.photos?.length || 0,
+        success: response.success
+      });
       const data = Array.isArray(response) ? response : (response.photos || []);
+      console.log('[PhotoFeed] Processed photos count:', data.length);
 
       // Map API response (photos table) to UI shape
       const photoItems = data.map(photo => {

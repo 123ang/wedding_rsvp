@@ -15,7 +15,8 @@ router.get('/photo/:photoId', async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
 
-    const [comments] = await pool.execute(
+    // Use string interpolation for LIMIT/OFFSET to avoid prepared statement issues
+    const [comments] = await pool.query(
       `SELECT 
         c.id,
         c.photo_id,
@@ -29,8 +30,8 @@ router.get('/photo/:photoId', async (req, res) => {
       WHERE c.photo_id = ?
       GROUP BY c.id
       ORDER BY c.created_at ASC
-      LIMIT ? OFFSET ?`,
-      [photoId, limit, offset]
+      LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`,
+      [photoId]
     );
 
     // Check if user liked each comment
