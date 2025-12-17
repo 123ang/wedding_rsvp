@@ -21,14 +21,22 @@ server {
     }
     
     # Uploaded files (photos, etc.)
-    location /uploads/ {
-        alias /root/projects/wedding_rsvp/uploads/;
+    location /uploads {
+        alias /root/projects/wedding_rsvp/uploads;
         expires 30d;
         add_header Cache-Control "public, immutable";
         access_log off;
         
         # Allow CORS for uploaded files
         add_header 'Access-Control-Allow-Origin' '*' always;
+        
+        # Enable directory listing for debugging (remove after fixing)
+        # autoindex on;
+        
+        # Security: Only allow specific file types
+        location ~* \.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$ {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+        }
     }
     
     # API Proxy (Node.js on port 3002)
