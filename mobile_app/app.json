@@ -28,17 +28,13 @@
       "package": "com.jspswedding.app",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {},
-    "extra": {
-      "eas": {
-        "projectId": "your-project-id-here"
-      }
-    },
     "plugins": [
       [
         "expo-image-picker",
@@ -47,6 +43,11 @@
         }
       ],
       "expo-video"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "54ae06f5-c206-40a3-bab7-6dc749bd9ad1"
+      }
+    }
   }
 }
