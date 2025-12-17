@@ -11,7 +11,9 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Dimensions
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -21,9 +23,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockData } from './src/data/mockData';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 import { themes, defaultTheme } from './src/utils/themes';
-import * as mockApi from './src/services/mockApi';
+import { Video } from 'expo-av';
+import realApi from './src/services/realApi';
 import { toBoolean } from './src/utils/booleanUtils';
 import ApiTestScreen from './src/screens/ApiTestScreen';
 import RSVPScreen from './src/screens/RSVPScreen';
@@ -31,6 +35,52 @@ import LoginScreen from './src/screens/LoginScreen';
 import { LanguageProvider, useLanguage } from './src/contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
+
+// Helper: download image to device gallery
+const downloadImageToGallery = async (imageUrl, fallbackName = 'photo') => {
+  try {
+    if (!imageUrl) {
+      Alert.alert('错误', '没有可下载的图片');
+      return;
+    }
+
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('错误', '请允许应用访问相册以保存图片');
+      return;
+    }
+
+    const fileName =
+      imageUrl.split('/').pop() || `${fallbackName}-${Date.now()}.jpg`;
+    const localUri = FileSystem.documentDirectory + fileName;
+
+    const result = await FileSystem.downloadAsync(imageUrl, localUri);
+    await MediaLibrary.saveToLibraryAsync(result.uri);
+
+    Alert.alert('成功', '照片已保存到相册');
+  } catch (error) {
+    console.error('[Download] error:', error);
+    Alert.alert('错误', '保存照片失败，请稍后重试');
+  }
+};
+
+// Helper: simple relative time (English only for now)
+const formatRelativeTime = (dateString) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay} d ago`;
+  return d.toISOString().slice(0, 10);
+};
 
 // Theme Context
 const ThemeContext = createContext();
@@ -47,7 +97,7 @@ const ThemeProvider = ({ children }) => {
 
   const loadTheme = async () => {
     try {
-      const themeId = await mockApi.getTheme();
+      const themeId = await AsyncStorage.getItem('@wedding_theme');
       console.log('[ThemeProvider] loaded theme id:', themeId);
       setCurrentTheme(themes[themeId] || defaultTheme);
       console.log('set current theme')
@@ -60,7 +110,7 @@ const ThemeProvider = ({ children }) => {
   const changeTheme = async (themeId) => {
     try {
       console.log('[ThemeProvider] changeTheme called with:', themeId);
-      await mockApi.setTheme(themeId);
+      await AsyncStorage.setItem('@wedding_theme', themeId);
       setCurrentTheme(themes[themeId] || defaultTheme);
     } catch (e) {
       console.log('[ThemeProvider] changeTheme ERROR:', e);
@@ -77,9 +127,43 @@ const ThemeProvider = ({ children }) => {
 // Splash Screen
 const SplashScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const [weddingInfo, setWeddingInfo] = useState({ groomShortName: 'JS', brideShortName: 'PS', date: '2026-01-04' });
+  
+  // Load wedding type on mount to set default
+  useEffect(() => {
+    const setDefaultInfo = async () => {
+      try {
+        const weddingType = await AsyncStorage.getItem('wedding_type');
+        if (weddingType === 'bride') {
+          setWeddingInfo({ groomShortName: 'JS', brideShortName: 'PS', date: '2026-01-02' });
+        }
+      } catch (e) {
+        // Ignore
+      }
+    };
+    setDefaultInfo();
+  }, []);
 
   useEffect(() => {
     console.log('[Splash] mounted (decide Login/Main)');
+
+    // Load wedding info silently (non-blocking, don't log errors)
+    const loadData = async () => {
+      try {
+        // Get wedding_type from storage if available
+        const weddingType = await AsyncStorage.getItem('wedding_type');
+        const info = await Promise.race([
+          realApi.getWeddingInfo(weddingType),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+        ]);
+        if (info && info.groomShortName) {
+          setWeddingInfo(info);
+        }
+      } catch (e) {
+        // Silently use defaults - don't log network errors during splash
+        // This is expected if API is not running or endpoint doesn't exist yet
+      }
+    };
 
     const decideNext = async () => {
       try {
@@ -97,6 +181,9 @@ const SplashScreen = ({ navigation }) => {
       }
     };
 
+    // Load data in background, don't wait for it
+    loadData().catch(() => {}); // Silent catch
+    
     const timer = setTimeout(decideNext, 1500);
 
     return () => {
@@ -108,11 +195,10 @@ const SplashScreen = ({ navigation }) => {
     <View style={[styles.splashContainer, { backgroundColor: theme.gradientStart }]}>
       <Text style={styles.splashLogo}>💒</Text>
       <Text style={[styles.splashTitle, { color: theme.text }]}>
-        {mockData.weddingInfo.groomShortName} ♥ {mockData.weddingInfo.brideShortName}
+        {weddingInfo.groomShortName || 'JS'} ♥ {weddingInfo.brideShortName || 'PS'}
       </Text>
       <Text style={[styles.splashSubtitle, { color: theme.textLight }]}>Wedding Celebration</Text>
       <Text style={styles.splashHearts}>💕 💕 💕</Text>
-      <Text style={[styles.splashDate, { color: theme.primary }]}>{mockData.weddingInfo.date}</Text>
       <ActivityIndicator size="small" color={theme.textLight} style={{ marginTop: 20 }} />
     </View>
   );
@@ -134,46 +220,125 @@ const SafeModeScreen = () => {
 // Home Screen
 const HomeScreen = ({ navigation }) => {
   const { theme } = useTheme();
-  const [countdown, setCountdown] = useState({ days: 365, hours: 12, minutes: 30, seconds: 45 });
+  const { t } = useLanguage();
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [weddingInfo, setWeddingInfo] = useState({ groomShortName: 'JS', brideShortName: 'PS', date: '2026-01-04', venue: 'Starview Restaurant', time: '18:00' });
+  const [weddingTypeState, setWeddingTypeState] = useState(null);
+  
+  // Load wedding type on mount to set default
+  useEffect(() => {
+    const setDefaultInfo = async () => {
+      try {
+        const weddingType = await AsyncStorage.getItem('wedding_type');
+        if (weddingType === 'bride') {
+          setWeddingInfo({ groomShortName: 'JS', brideShortName: 'PS', date: '2026-01-02', venue: 'Fu Hotel', time: '18:00' });
+        }
+      } catch (e) {
+        // Ignore
+      }
+    };
+    setDefaultInfo();
+  }, []);
+
+  // Calculate countdown to wedding date and time
+  const calculateCountdown = (weddingDate, weddingTime = '18:00') => {
+    try {
+      // Parse wedding date and time
+      const [datePart, timePart] = weddingDate.includes('T') ? weddingDate.split('T') : [weddingDate, weddingTime];
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours = 18, minutes = 0] = (timePart || weddingTime || '18:00').split(':').map(Number);
+      
+      // Create wedding date/time
+      const weddingDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+      const now = new Date();
+      
+      // Calculate difference
+      const diff = weddingDateTime - now;
+      
+      if (diff <= 0) {
+        // Wedding has passed
+        return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+      }
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hoursRemaining = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutesRemaining = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secondsRemaining = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      return { days, hours: hoursRemaining, minutes: minutesRemaining, seconds: secondsRemaining };
+    } catch (error) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+    }
+  };
 
   useEffect(() => {
     console.log('[Home] mounted');
+    const loadInfo = async () => {
+      try {
+        // Get wedding_type from storage to load correct wedding info
+        const weddingType = await AsyncStorage.getItem('wedding_type');
+        if (weddingType) {
+          setWeddingTypeState(weddingType);
+        }
+        const info = await Promise.race([
+          realApi.getWeddingInfo(weddingType),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+        ]);
+        if (info && info.groomShortName) {
+          setWeddingInfo(info);
+        }
+      } catch (e) {
+        // Silently use defaults - API might not be available
+      }
+    };
+    loadInfo();
     return () => console.log('[Home] unmounted');
   }, []);
 
+  // Update countdown every second
+  useEffect(() => {
+    // Initial calculation
+    setCountdown(calculateCountdown(weddingInfo.date, weddingInfo.time));
+    
+    // Update every second
+    const interval = setInterval(() => {
+      setCountdown(calculateCountdown(weddingInfo.date, weddingInfo.time));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [weddingInfo.date, weddingInfo.time]);
+
   const features = [
-    { icon: '👔', title: '认识新郎', desc: '了解他的故事', screen: 'GroomProfile' },
-    { icon: '👰', title: '认识新娘', desc: '了解她的故事', screen: 'BrideProfile' },
-    { icon: '🪑', title: '座位地图', desc: '查看您的座位', screen: 'SeatMap' },
-    { icon: '📸', title: '照片画廊', desc: '美好回忆', screen: 'PhotoFeed' },
-    { icon: '📹', title: '视频', desc: '精彩瞬间', screen: 'Videos' },
-    { icon: '📅', title: '婚礼流程', desc: '时间安排', screen: 'Timeline' }
+    { icon: '👔', title: t('home.feature.groomTitle'), desc: t('home.feature.groomDesc'), screen: 'GroomProfile' },
+    { icon: '👰', title: t('home.feature.brideTitle'), desc: t('home.feature.brideDesc'), screen: 'BrideProfile' },
+    { icon: '🪑', title: t('seat.title'), desc: t('seat.pending'), screen: 'Seats', tab: true },
+    { icon: '📅', title: t('home.feature.timelineTitle'), desc: t('home.feature.timelineDesc'), screen: 'Timeline' }
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" hidden={Boolean(false)} translucent={Boolean(false)} />
-      <ScrollView showsVerticalScrollIndicator={Boolean(false)}>
+      <ScrollView showsVerticalScrollIndicator={Boolean(false)} contentContainerStyle={{ paddingTop: 0 }}>
         {/* Hero Section */}
         <View style={[styles.heroSection, { backgroundColor: theme.gradientStart }]}>
           <Text style={[styles.heroTitle, { color: theme.text }]}>
-            {mockData.weddingInfo.groomShortName} ♥ {mockData.weddingInfo.brideShortName}
+            {weddingInfo.groomShortName || 'JS'} ♥ {weddingInfo.brideShortName || 'PS'}
           </Text>
-          <Text style={[styles.heroDate, { color: theme.primary }]}>{mockData.weddingInfo.date}</Text>
+          <Text style={[styles.heroDate, { color: theme.primary }]}>{weddingInfo.date || '2026-01-04'}</Text>
           <Text style={[styles.heroLocation, { color: theme.textLight }]}>
-            📍 {mockData.weddingInfo.venue}
+            📍 {weddingInfo.venue || 'Starview Restaurant'}
           </Text>
         </View>
 
         {/* Countdown */}
         <View style={[styles.countdownBox, { backgroundColor: '#fff' }]}>
-          <Text style={[styles.countdownTitle, { color: theme.textLight }]}>距离婚礼还有</Text>
+          <Text style={[styles.countdownTitle, { color: theme.textLight }]}>{t('home.countdownTitle')}</Text>
           <View style={styles.countdownGrid}>
             {[
-              { value: countdown.days, label: '天' },
-              { value: countdown.hours, label: '小时' },
-              { value: countdown.minutes, label: '分钟' },
-              { value: countdown.seconds, label: '秒' }
+              { value: countdown.days, label: t('home.countdown.days') },
+              { value: countdown.hours, label: t('home.countdown.hours') },
+              { value: countdown.minutes, label: t('home.countdown.minutes') },
+              { value: countdown.seconds, label: t('home.countdown.seconds') }
             ].map((item, index) => (
               <View key={index} style={styles.countdownItem}>
                 <Text style={[styles.countdownNumber, { color: theme.primary }]}>{item.value}</Text>
@@ -185,19 +350,23 @@ const HomeScreen = ({ navigation }) => {
 
         {/* RSVP Buttons */}
         <View style={styles.rsvpSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>确认出席</Text>
-          <TouchableOpacity
-            style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
-            onPress={() => navigation.navigate('RSVP', { type: 'bride' })}
-          >
-            <Text style={styles.rsvpButtonText}>👰 新娘婚礼 RSVP</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.rsvpButton, { backgroundColor: theme.accent }]}
-            onPress={() => navigation.navigate('RSVP', { type: 'groom' })}
-          >
-            <Text style={styles.rsvpButtonText}>👔 新郎婚礼 RSVP</Text>
-          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.confirmAttendance')}</Text>
+          {(weddingTypeState === null || weddingTypeState === 'bride') && (
+            <TouchableOpacity
+              style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
+              onPress={() => navigation.navigate('RSVP', { type: 'bride' })}
+            >
+              <Text style={styles.rsvpButtonText}>👰 {t('home.brideRsvp')}</Text>
+            </TouchableOpacity>
+          )}
+          {(weddingTypeState === null || weddingTypeState === 'groom') && (
+            <TouchableOpacity
+              style={[styles.rsvpButton, { backgroundColor: theme.accent }]}
+              onPress={() => navigation.navigate('RSVP', { type: 'groom' })}
+            >
+              <Text style={styles.rsvpButtonText}>👔 {t('home.groomRsvp')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Features Grid */}
@@ -206,7 +375,14 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity
               key={index}
               style={[styles.featureCard, { backgroundColor: '#fff' }]}
-              onPress={() => navigation.navigate(feature.screen)}
+              onPress={() => {
+                if (feature.tab) {
+                  // Navigate to tab screen
+                  navigation.navigate('Main', { screen: feature.screen });
+                } else {
+                  navigation.navigate(feature.screen);
+                }
+              }}
               activeOpacity={0.7}
               disabled={Boolean(false)}
             >
@@ -224,7 +400,19 @@ const HomeScreen = ({ navigation }) => {
 // Groom Profile Screen
 const GroomProfileScreen = () => {
   const { theme } = useTheme();
-  const profile = mockData.groomProfile;
+  const [profile, setProfile] = useState({ name: 'Dr. Ang Jin Sheng', role: 'The Groom', avatar: '👔', occupation: '软件工程师', hobbies: '摄影、旅行、阅读', bio: '热爱生活，享受每一个美好瞬间。' });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await realApi.getGroomProfile();
+        if (data) setProfile(data);
+      } catch (e) {
+        // Silently use defaults
+      }
+    };
+    load();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -260,7 +448,19 @@ const GroomProfileScreen = () => {
 // Bride Profile Screen
 const BrideProfileScreen = () => {
   const { theme } = useTheme();
-  const profile = mockData.brideProfile;
+  const [profile, setProfile] = useState({ name: 'Miss Ong Pei Shi', role: 'The Bride', avatar: '👰', occupation: '设计师', hobbies: '绘画、音乐、美食', bio: '充满创意和热情，喜欢用艺术表达情感。' });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await realApi.getBrideProfile();
+        if (data) setProfile(data);
+      } catch (e) {
+        // Silently use defaults
+      }
+    };
+    load();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -298,6 +498,7 @@ const PhotoFeedScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mutedVideoIds, setMutedVideoIds] = useState({});
 
   useEffect(() => {
     loadPhotos();
@@ -305,131 +506,320 @@ const PhotoFeedScreen = ({ navigation }) => {
 
   const loadPhotos = async () => {
     try {
-      const data = await mockApi.getPhotos();
-      // Double-check all booleans are normalized
-      const normalized = data.map(photo => {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      const response = await realApi.getPhotos(1, 20, userPhone);
+      const data = Array.isArray(response) ? response : (response.photos || []);
+
+      // Map API response (photos table) to UI shape
+      const photoItems = data.map(photo => {
         const p = { ...photo };
-        p.likedByMe = toBoolean(p.likedByMe);
-        p.savedByMe = toBoolean(p.savedByMe);
+
+        // Backend field names → UI field names
+        p.id = photo.id;
+        p.userName = photo.user_name || 'Guest';
+        p.userAvatar = (photo.user_name && photo.user_name[0]) || '👤';
+        p.type = 'photo';
+        p.createdAt = photo.created_at;
+
+        // Build full image URL if needed
+        if (photo.image_url && photo.image_url.startsWith('/')) {
+          // Use API base URL (without /api) for uploads
+          const baseUrl = realApi?.apiBaseUrl || '';
+          p.imageUrl = `${baseUrl}${photo.image_url}`;
+        } else {
+          p.imageUrl = photo.image_url || photo.imageUrl || '';
+        }
+
+        // Tags: backend returns array of objects { id, name }
+        if (Array.isArray(photo.tags)) {
+          p.tags = photo.tags.map(t => t.name || t);
+        } else {
+          p.tags = [];
+        }
+
+        // Likes and comments counts
+        p.likes = photo.likes_count != null ? photo.likes_count : (photo.likes || 0);
+        p.totalComments = photo.comments_count != null ? photo.comments_count : (photo.totalComments || 0);
+
+        // Flags
+        p.likedByMe = toBoolean(photo.liked || photo.likedByMe);
+        p.savedByMe = toBoolean(photo.savedByMe);
+
         if (p.comments) {
           p.comments = p.comments.map(c => ({
             ...c,
             likedByMe: toBoolean(c.likedByMe)
           }));
         }
+
         return p;
       });
-      setPhotos(normalized);
+
+      // Load videos as well
+      let videoItems = [];
+      try {
+        const videosResponse = await realApi.getVideos();
+        const videosData = Array.isArray(videosResponse) ? videosResponse : (videosResponse.videos || []);
+        const baseUrl = realApi?.apiBaseUrl || '';
+
+        videoItems = videosData.map(video => ({
+          id: video.id,
+          type: 'video',
+          userName: video.guest_name || video.title || 'Video',
+          userAvatar: (video.guest_name && video.guest_name[0]) || '🎬',
+          createdAt: video.created_at,
+          videoUrl: video.video_url && video.video_url.startsWith('/')
+            ? `${baseUrl}${video.video_url}`
+            : video.video_url,
+          tags: [],
+          likes: 0,
+          totalComments: 0,
+          likedByMe: false,
+          savedByMe: false,
+          caption: video.description || '',
+        }));
+      } catch (e) {
+        // ignore video load errors
+      }
+
+      const combined = [...photoItems, ...videoItems].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+
+      setPhotos(combined);
       setLoading(false);
     } catch (error) {
-      console.error('Error loading photos:', error);
+      // Silently handle network errors - API might not be available
+      setPhotos([]);
       setLoading(false);
     }
   };
 
   const handleLike = async (photoId) => {
-    const updated = await mockApi.likePhoto(photoId);
-    const normalized = {
-      ...updated,
-      likedByMe: toBoolean(updated.likedByMe),
-      savedByMe: toBoolean(updated.savedByMe),
-      comments: updated.comments ? updated.comments.map(c => ({
-        ...c,
-        likedByMe: toBoolean(c.likedByMe)
-      })) : []
-    };
-    setPhotos(photos.map(p => p.id === photoId ? normalized : p));
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+      const result = await realApi.likePhoto(photoId, userPhone);
+      setPhotos(photos.map(p => {
+        if (p.type !== 'photo' || p.id !== photoId) return p;
+        return {
+          ...p,
+          likedByMe: toBoolean(result.likedByMe),
+          likes: typeof result.likes === 'number' ? result.likes : p.likes,
+        };
+      }));
+    } catch (error) {
+      // Silently handle error
+    }
   };
 
   const handleSave = async (photoId) => {
-    const updated = await mockApi.savePhoto(photoId);
-    const normalized = {
-      ...updated,
-      likedByMe: toBoolean(updated.likedByMe),
-      savedByMe: toBoolean(updated.savedByMe),
-      comments: updated.comments ? updated.comments.map(c => ({
-        ...c,
-        likedByMe: toBoolean(c.likedByMe)
-      })) : []
-    };
-    setPhotos(photos.map(p => p.id === photoId ? normalized : p));
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+      const result = await realApi.toggleSavePhoto(photoId, userPhone);
+      setPhotos(photos.map(p => {
+        if (p.type !== 'photo' || p.id !== photoId) return p;
+        return {
+          ...p,
+          savedByMe: toBoolean(result.savedByMe),
+        };
+      }));
+    } catch (error) {
+      // Silently handle error
+    }
   };
 
-  const renderPhoto = ({ item }) => (
-    <View style={styles.photoPost}>
-      {/* Header */}
-      <View style={styles.postHeader}>
-        <Text style={styles.postAvatar}>{item.userAvatar}</Text>
-        <View style={styles.postUser}>
-          <Text style={[styles.postUsername, { color: theme.text }]}>{item.userName}</Text>
-          <Text style={[styles.postTime, { color: theme.textLight }]}>2小时前</Text>
-        </View>
-      </View>
+  const handleDelete = async (item) => {
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
 
-      {/* Image */}
-      <TouchableOpacity
-        style={[styles.postImage, { backgroundColor: theme.gradientStart }]}
-        onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
-      >
-        <Text style={styles.postImageEmoji}>{item.imageUrl}</Text>
-        <View style={styles.postImageOverlay}>
-          {item.tags.map((tag, index) => (
-            <View key={index} style={styles.tagBadgeOverlay}>
-              <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
+      Alert.alert(
+        '删除',
+        '确定要删除这条内容吗？',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '删除',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                if (item.type === 'video') {
+                  await realApi.deleteVideo(item.id, userPhone);
+                } else {
+                  await realApi.deletePhoto(item.id, userPhone);
+                }
+                setPhotos(prev => prev.filter(p => !(p.type === item.type && p.id === item.id)));
+              } catch (error) {
+                const msg =
+                  error?.response?.data?.message ||
+                  (error?.response?.status === 403
+                    ? '只能删除自己上传的内容'
+                    : '删除失败，请稍后重试');
+                Alert.alert('错误', msg);
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (e) {
+      Alert.alert('错误', '删除失败，请稍后重试');
+    }
+  };
+
+  const handleMoreActions = (item) => {
+    const buttons = [];
+
+    if (item.type === 'photo' && item.imageUrl) {
+      buttons.push({
+        text: '下载照片',
+        onPress: () => downloadImageToGallery(item.imageUrl, `photo-${item.id}`),
+      });
+    }
+
+    buttons.push({
+      text: '删除',
+      style: 'destructive',
+      onPress: () => handleDelete(item),
+    });
+
+    buttons.push({
+      text: '取消',
+      style: 'cancel',
+    });
+
+    Alert.alert('更多操作', '', buttons, { cancelable: true });
+  };
+
+  const renderPhoto = ({ item }) => {
+    const isVideo = item.type === 'video';
+    const isMuted = mutedVideoIds[item.id] !== false; // default true
+
+    return (
+      <View style={styles.photoPost}>
+        {/* Header */}
+        <View style={styles.postHeader}>
+          <Text style={styles.postAvatar}>{item.userAvatar}</Text>
+          <View style={styles.postUser}>
+            <Text style={[styles.postUsername, { color: theme.text }]}>{item.userName}</Text>
+            <Text style={[styles.postTime, { color: theme.textLight }]}>{formatRelativeTime(item.createdAt)}</Text>
+          </View>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => handleMoreActions(item)}>
+            <Ionicons name="ellipsis-vertical" size={20} color={theme.textLight} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Media */}
+        <TouchableOpacity
+          style={[styles.postImage, { backgroundColor: theme.gradientStart }]}
+          onPress={() => {
+            if (isVideo) {
+              setMutedVideoIds(prev => ({
+                ...prev,
+                [item.id]: !isMuted,
+              }));
+            } else {
+              navigation.navigate('PhotoDetail', { photo: item });
+            }
+          }}
+          activeOpacity={isVideo ? 1 : 0.7}
+        >
+          {isVideo ? (
+            <Video
+              source={{ uri: item.videoUrl }}
+              style={styles.videoPlayer}
+              resizeMode="contain"
+              shouldPlay
+              isLooping
+              isMuted={isMuted}
+              useNativeControls={false}
+            />
+          ) : item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.postImageImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={styles.postImageEmoji}>No Image</Text>
+          )}
+          {!isVideo && (
+            <View style={styles.postImageOverlay}>
+              {item.tags.map((tag, index) => (
+                <View key={index} style={styles.tagBadgeOverlay}>
+                  <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      </TouchableOpacity>
+          )}
+        </TouchableOpacity>
 
-      {/* Actions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity onPress={() => handleLike(item.id)}>
-          <Ionicons
-            name={toBoolean(item.likedByMe) ? 'heart' : 'heart-outline'}
-            size={28}
-            color={toBoolean(item.likedByMe) ? '#e91e63' : theme.text}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
-          style={{ marginLeft: 15 }}
-        >
-          <Ionicons name="chatbubble-outline" size={26} color={theme.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity onPress={() => handleSave(item.id)}>
-          <Ionicons
-            name={toBoolean(item.savedByMe) ? 'bookmark' : 'bookmark-outline'}
-            size={26}
-            color={toBoolean(item.savedByMe) ? theme.primary : theme.text}
-          />
-        </TouchableOpacity>
+        {/* Actions / likes / caption only for photos */}
+        {!isVideo && (
+          <>
+            <View style={styles.postActions}>
+              <TouchableOpacity onPress={() => handleLike(item.id)}>
+                <Ionicons
+                  name={toBoolean(item.likedByMe) ? 'heart' : 'heart-outline'}
+                  size={28}
+                  color={toBoolean(item.likedByMe) ? '#e91e63' : theme.text}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
+                style={{ marginLeft: 15 }}
+              >
+                <Ionicons name="chatbubble-outline" size={26} color={theme.text} />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity onPress={() => handleSave(item.id)}>
+                <Ionicons
+                  name={toBoolean(item.savedByMe) ? 'bookmark' : 'bookmark-outline'}
+                  size={26}
+                  color={toBoolean(item.savedByMe) ? theme.primary : theme.text}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Likes & caption */}
+            <Text style={[styles.postLikes, { color: theme.text }]}>{item.likes} 个赞</Text>
+            <View style={styles.postCaption}>
+              <Text style={[styles.postCaptionText, { color: theme.text }]}>
+                <Text style={{ fontWeight: 'bold' }}>{item.userName} </Text>
+                {item.caption}
+              </Text>
+            </View>
+
+            {/* Comments link */}
+            {item.totalComments > 0 && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
+                style={styles.postComments}
+              >
+                <Text style={[styles.viewComments, { color: theme.textLight }]}>
+                  查看全部 {item.totalComments} 条评论
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
-
-      {/* Likes */}
-      <Text style={[styles.postLikes, { color: theme.text }]}>{item.likes} 个赞</Text>
-
-      {/* Caption */}
-      <View style={styles.postCaption}>
-        <Text style={[styles.postCaptionText, { color: theme.text }]}>
-          <Text style={{ fontWeight: 'bold' }}>{item.userName} </Text>
-          {item.caption}
-        </Text>
-      </View>
-
-      {/* Comments */}
-      {item.totalComments > 0 && (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
-          style={styles.postComments}
-        >
-          <Text style={[styles.viewComments, { color: theme.textLight }]}>
-            查看全部 {item.totalComments} 条评论
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -444,7 +834,7 @@ const PhotoFeedScreen = ({ navigation }) => {
       <FlatList
         data={photos}
         renderItem={renderPhoto}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => `${item.type || 'photo'}-${item.id}`}
         showsVerticalScrollIndicator={Boolean(false)}
         removeClippedSubviews={Boolean(false)}
       />
@@ -469,6 +859,59 @@ const PhotoDetailScreen = ({ route, navigation }) => {
   });
   const [commentText, setCommentText] = useState('');
 
+  const loadFullPhoto = async () => {
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      const [photoData, commentsData] = await Promise.all([
+        realApi.getPhoto(photo.id, userPhone),
+        realApi.getComments(photo.id, 1, 100, userPhone),
+      ]);
+
+      const commentsArray = Array.isArray(commentsData?.comments)
+        ? commentsData.comments
+        : Array.isArray(commentsData)
+        ? commentsData
+        : [];
+
+      const mappedComments = commentsArray.map(c => ({
+        id: c.id,
+        userName: c.user_name || c.userName || 'Guest',
+        text: c.text,
+        likes: c.likes_count != null ? c.likes_count : 0,
+        likedByMe: toBoolean(c.liked || c.likedByMe),
+        createdAt: c.created_at,
+      }));
+      // Normalize tags to simple strings
+      const normalizedTags = Array.isArray(photoData.tags)
+        ? photoData.tags.map(t => t.name || t)
+        : [];
+
+      // Ensure we have a full image URL (same logic as feed)
+      let fullImageUrl = photoData.image_url || photoData.imageUrl || '';
+      const baseUrl = realApi?.apiBaseUrl || '';
+      if (fullImageUrl && fullImageUrl.startsWith('/') && baseUrl) {
+        fullImageUrl = `${baseUrl}${fullImageUrl}`;
+      }
+
+      setPhoto(
+        normalizePhoto({
+          ...photoData,
+          imageUrl: prev?.imageUrl || fullImageUrl,
+          createdAt: prev?.createdAt || photoData.created_at,
+          tags: normalizedTags,
+          comments: mappedComments,
+        })
+      );
+    } catch (error) {
+      // ignore load errors; keep existing state
+    }
+  };
+
+  useEffect(() => {
+    loadFullPhoto();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const normalizePhoto = (p) => ({
     ...p,
     likedByMe: toBoolean(p.likedByMe),
@@ -480,50 +923,121 @@ const PhotoDetailScreen = ({ route, navigation }) => {
   });
 
   const handleLike = async () => {
-    const updated = await mockApi.likePhoto(photo.id);
-    setPhoto(normalizePhoto(updated));
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+      const result = await realApi.likePhoto(photo.id, userPhone);
+      setPhoto(prev => ({
+        ...prev,
+        likedByMe: toBoolean(result.likedByMe),
+        likes: typeof result.likes === 'number' ? result.likes : prev.likes,
+      }));
+    } catch (error) {
+      // Silently handle error
+    }
   };
 
   const handleSave = async () => {
-    const updated = await mockApi.savePhoto(photo.id);
-    setPhoto(normalizePhoto(updated));
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+      const result = await realApi.toggleSavePhoto(photo.id, userPhone);
+      setPhoto(prev => ({
+        ...prev,
+        savedByMe: toBoolean(result.savedByMe),
+      }));
+    } catch (error) {
+      // silently ignore
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!photo.imageUrl) {
+      Alert.alert('错误', '没有可下载的图片');
+      return;
+    }
+    Alert.alert('提示', '请长按图片或使用系统截图功能保存到相册。');
   };
 
   const handleAddComment = async () => {
     if (commentText.trim()) {
-      const updated = await mockApi.addComment(photo.id, commentText);
-      setPhoto(normalizePhoto(updated));
-      setCommentText('');
+      try {
+        const userPhone = await AsyncStorage.getItem('user_phone');
+        if (!userPhone) {
+          Alert.alert('Error', 'Please login first');
+          return;
+        }
+        await realApi.addComment(photo.id, null, userPhone, commentText);
+        // Reload full photo with comments after adding
+        await loadFullPhoto();
+        setCommentText('');
+      } catch (error) {
+        // Silently handle error
+        Alert.alert('Error', 'Failed to add comment');
+      }
     }
   };
 
   const handleLikeComment = async (commentId) => {
-    const updated = await mockApi.likeComment(photo.id, commentId);
-    setPhoto(normalizePhoto(updated));
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+      await realApi.likeComment(commentId, userPhone);
+      // Reload photo to get updated comment likes
+      await loadFullPhoto();
+    } catch (error) {
+      // Silently handle error
+    }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      >
       <ScrollView>
         {/* Post Header */}
         <View style={styles.postHeader}>
           <Text style={styles.postAvatar}>{photo.userAvatar}</Text>
           <View style={styles.postUser}>
             <Text style={[styles.postUsername, { color: theme.text }]}>{photo.userName}</Text>
-            <Text style={[styles.postTime, { color: theme.textLight }]}>2小时前</Text>
+            <Text style={[styles.postTime, { color: theme.textLight }]}>{formatRelativeTime(photo.createdAt)}</Text>
           </View>
         </View>
 
         {/* Image */}
         <View style={[styles.postImage, { backgroundColor: theme.gradientStart }]}>
-          <Text style={styles.postImageEmoji}>{photo.imageUrl}</Text>
-          <View style={styles.postImageOverlay}>
-            {photo.tags.map((tag, index) => (
-              <View key={index} style={styles.tagBadgeOverlay}>
-                <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
+          {photo.imageUrl ? (
+            <>
+              <TouchableOpacity onPress={handleDownload} activeOpacity={0.9}>
+                <Image
+                  source={{ uri: photo.imageUrl }}
+                  style={styles.postImageImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+              <View style={styles.postImageOverlay}>
+                {photo.tags.map((tag, index) => (
+                  <View key={index} style={styles.tagBadgeOverlay}>
+                    <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          ) : (
+            <Text style={styles.postImageEmoji}>No Image</Text>
+          )}
         </View>
 
         {/* Actions */}
@@ -562,7 +1076,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         {/* Comments */}
         <View style={styles.commentsSection}>
           <Text style={[styles.commentsSectionTitle, { color: theme.text }]}>评论</Text>
-          {photo.comments.map((comment) => (
+          {Array.isArray(photo.comments) && photo.comments.map((comment) => (
             <View key={comment.id} style={styles.commentItem}>
               <Text style={styles.commentAvatar}>👤</Text>
               <View style={styles.commentContent}>
@@ -571,7 +1085,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
                   {comment.text}
                 </Text>
                 <Text style={[styles.commentTime, { color: theme.textLight }]}>
-                  {comment.likes} 个赞 · 刚刚
+                  {comment.likes} 个赞 · {formatRelativeTime(comment.createdAt)}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => handleLikeComment(comment.id)}>
@@ -602,6 +1116,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
           <Ionicons name="send" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -609,30 +1124,44 @@ const PhotoDetailScreen = ({ route, navigation }) => {
 // Photo Upload Screen
 const PhotoUploadScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [selectedImages, setSelectedImages] = useState([]);
   const [caption, setCaption] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [tags, setTags] = useState([]);
+  const [customTag, setCustomTag] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [isVideo, setIsVideo] = useState(false);
 
   useEffect(() => {
     loadTags();
   }, []);
 
   const loadTags = async () => {
-    const data = await mockApi.getTags();
-    setTags(data);
+    try {
+      const data = await realApi.getTags();
+      const list = Array.isArray(data) ? data : (data.tags || []);
+      setTags(list);
+    } catch (error) {
+      // Silently handle error
+      setTags([]);
+    }
   };
 
   const pickImages = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: isVideo ? ['videos'] : ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
 
-    if (!result.canceled) {
-      setSelectedImages(result.assets.slice(0, 9));
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImages(result.assets.slice(0, 9));
+      }
+    } catch (error) {
+      Alert.alert('错误', '无法选择照片，请重试');
     }
   };
 
@@ -644,20 +1173,106 @@ const PhotoUploadScreen = ({ navigation }) => {
     }
   };
 
+  const handleAddCustomTag = () => {
+    const trimmed = customTag.trim();
+    if (!trimmed) return;
+    if (!selectedTags.includes(trimmed)) {
+      setSelectedTags([...selectedTags, trimmed]);
+    }
+    if (!tags.find(t => t.name === trimmed)) {
+      setTags([...tags, { id: `custom-${trimmed}`, name: trimmed }]);
+    }
+    setCustomTag('');
+  };
+
   const handleUpload = async () => {
     if (selectedImages.length === 0) {
-      Alert.alert('提示', '请选择至少一张照片');
+      Alert.alert('提示', isVideo ? '请选择一个视频' : '请选择至少一张照片');
       return;
     }
 
     setUploading(true);
     try {
-      await mockApi.uploadPhoto(selectedImages[0].uri, caption, selectedTags);
-      Alert.alert('成功', '照片已发布！', [
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('错误', '请先登录');
+        setUploading(false);
+        return;
+      }
+
+      // Create FormData for multipart upload
+      const formData = new FormData();
+      
+      // Get the asset URI - handle both image and video
+      const asset = selectedImages[0];
+      const fileUri = asset.uri;
+      const fileName = fileUri.split('/').pop() || (isVideo ? 'video.mp4' : 'photo.jpg');
+      const fileType = asset.mimeType || asset.type || (isVideo ? 'video/mp4' : 'image/jpeg');
+      
+      if (isVideo) {
+        formData.append('video', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        });
+      } else {
+        // Backend expects field name 'photo' (not 'image')
+        formData.append('photo', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        });
+      }
+      
+      // Get user name from RSVP or use default
+      let userName = 'Guest';
+      try {
+        const verifyResult = await realApi.verifyPhone(userPhone);
+        if (verifyResult.found && verifyResult.guest && verifyResult.guest.name) {
+          userName = verifyResult.guest.name;
+        }
+      } catch (e) {
+        // Use default 'Guest' if can't fetch name
+      }
+      
+      // Backend requires user_name and user_phone
+      formData.append('user_name', userName);
+      formData.append('user_phone', userPhone);
+      
+      if (caption && caption.trim()) {
+        formData.append('caption', caption.trim());
+        if (isVideo) {
+          formData.append('title', caption.trim());
+          formData.append('description', caption.trim());
+        }
+      }
+      
+      if (!isVideo && selectedTags.length > 0) {
+        // Send tags as JSON string (backend will parse it)
+        formData.append('tags', JSON.stringify(selectedTags));
+      }
+
+      console.log('[PhotoUpload] Uploading media...', {
+        mode: isVideo ? 'video' : 'photo',
+        hasImage: !!selectedImages[0],
+        caption: caption || '(empty)',
+        tags: selectedTags.length,
+        userPhone: userPhone ? '***' : 'missing'
+      });
+
+      const response = isVideo
+        ? await realApi.uploadVideo(formData)
+        : await realApi.uploadPhoto(formData);
+      
+      console.log('[PhotoUpload] Upload success:', response);
+      
+      Alert.alert('成功', isVideo ? '视频已发布！' : '照片已发布！', [
         { text: '确定', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      Alert.alert('错误', '上传失败，请重试');
+      console.error('[PhotoUpload] Upload error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || '上传失败，请重试';
+      Alert.alert('错误', errorMessage);
     } finally {
       setUploading(false);
     }
@@ -666,21 +1281,62 @@ const PhotoUploadScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView>
+        {/* Mode Toggle */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            marginBottom: 10,
+            marginTop: 10,
+            marginHorizontal: 20,
+            padding: 4,
+            borderWidth: 2,
+            borderColor: theme.secondary,
+            borderRadius: 20,
+            backgroundColor: '#fff',
+          }}
+        >
+          <TouchableOpacity
+            style={[
+              styles.radioButton,
+              !isVideo && { backgroundColor: theme.primary, borderColor: theme.primary },
+              { marginRight: 10, paddingHorizontal: 20 },
+            ]}
+            onPress={() => setIsVideo(false)}
+          >
+            <Text style={[styles.radioText, !isVideo && { color: '#fff' }]}>{t('upload.photoTab')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.radioButton,
+              isVideo && { backgroundColor: theme.primary, borderColor: theme.primary },
+              { paddingHorizontal: 20 },
+            ]}
+            onPress={() => setIsVideo(true)}
+          >
+            <Text style={[styles.radioText, isVideo && { color: '#fff' }]}>{t('upload.videoTab')}</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Upload Area */}
         <TouchableOpacity
           style={[styles.uploadArea, { borderColor: theme.secondary }]}
           onPress={pickImages}
         >
           <Ionicons name="cloud-upload-outline" size={60} color={theme.primary} />
-          <Text style={[styles.uploadText, { color: theme.textLight }]}>点击选择照片</Text>
-          <Text style={[styles.uploadHint, { color: theme.textLight }]}>支持多选，最多9张</Text>
+          <Text style={[styles.uploadText, { color: theme.textLight }]}>
+            {isVideo ? t('upload.pickVideoHint') : t('upload.pickPhotoHint')}
+          </Text>
+          {!isVideo && (
+            <Text style={[styles.uploadHint, { color: theme.textLight }]}>{t('upload.pickHint')}</Text>
+          )}
         </TouchableOpacity>
 
         {/* Selected Images */}
         {selectedImages.length > 0 && (
           <View style={styles.selectedImagesContainer}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              已选择照片 ({selectedImages.length})
+              {t('upload.selectedPhotos', { count: selectedImages.length })}
             </Text>
             <View style={styles.imageGrid}>
               {selectedImages.map((image, index) => (
@@ -695,7 +1351,7 @@ const PhotoUploadScreen = ({ navigation }) => {
         {/* Tags */}
         <View style={styles.tagsSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            <Ionicons name="pricetags" size={18} color={theme.primary} /> 选择标签（可选）
+            <Ionicons name="pricetags" size={18} color={theme.primary} /> {t('upload.tagsTitle')}
           </Text>
           <View style={styles.tagsGrid}>
             {tags.map((tag) => (
@@ -720,14 +1376,43 @@ const PhotoUploadScreen = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Custom tag input */}
+          <View style={{ flexDirection: 'row', marginTop: 10 }}>
+            <TextInput
+              style={[
+                styles.captionInput,
+                { flex: 1, borderColor: theme.secondary, color: theme.text, height: 40 },
+              ]}
+              placeholder={t('upload.customTagPlaceholder')}
+              placeholderTextColor={theme.textLight}
+              value={customTag}
+              onChangeText={setCustomTag}
+            />
+            <TouchableOpacity
+              style={[
+                styles.uploadButton,
+                {
+                  marginTop: 0,
+                  marginLeft: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  backgroundColor: theme.primary,
+                },
+              ]}
+              onPress={handleAddCustomTag}
+            >
+              <Text style={styles.uploadButtonText}>添加</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Caption */}
         <View style={styles.captionSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>添加描述（可选）</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('upload.captionTitle')}</Text>
           <TextInput
             style={[styles.captionInput, { borderColor: theme.secondary, color: theme.text }]}
-            placeholder="分享这一刻的感受..."
+            placeholder={t('upload.captionPlaceholder')}
             placeholderTextColor={theme.textLight}
             multiline={Boolean(true)}
             numberOfLines={4}
@@ -745,7 +1430,7 @@ const PhotoUploadScreen = ({ navigation }) => {
           {uploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.uploadButtonText}>发布照片</Text>
+          <Text style={styles.uploadButtonText}>{t('upload.button')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -762,6 +1447,7 @@ const Tab = createBottomTabNavigator();
 // Bottom Tab Navigator
 const MainTabs = () => {
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   useEffect(() => {
     console.log('[MainTabs] mounted');
@@ -791,12 +1477,12 @@ const MainTabs = () => {
         tabBarHideOnKeyboard: Boolean(false)
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: '首页', headerTitle: `${mockData.weddingInfo.groomShortName} ♥ ${mockData.weddingInfo.brideShortName} Wedding` }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: t('tab.home'), headerShown: false }} />
       <Tab.Screen 
         name="Photos" 
         component={PhotoFeedScreen} 
         options={({ navigation }) => ({
-          title: '照片',
+          title: t('tab.photos'),
           headerRight: () => (
             <TouchableOpacity 
               onPress={() => navigation.navigate('PhotoUpload')} 
@@ -807,104 +1493,68 @@ const MainTabs = () => {
           )
         })} 
       />
-      <Tab.Screen name="Seats" component={SeatMapScreen} options={{ title: '座位' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: '设置' }} />
+      <Tab.Screen name="Seats" component={SeatMapScreen} options={{ title: t('tab.seats') }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tab.settings') }} />
     </Tab.Navigator>
   );
 };
 
-// Seat Map Screen
+// Seat Map Screen - uses seat_table from RSVPs
 const SeatMapScreen = () => {
   const { theme } = useTheme();
-  const [seats, setSeats] = useState([]);
+  const { t } = useLanguage();
+  const [seatInfo, setSeatInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSeats();
+    const loadSeat = async () => {
+      try {
+        const phone = await AsyncStorage.getItem('user_phone');
+        if (!phone) {
+          setSeatInfo(null);
+          setLoading(false);
+          return;
+        }
+        const verifyResult = await realApi.verifyPhone(phone);
+        if (!verifyResult.found || !verifyResult.rsvps || verifyResult.rsvps.length === 0) {
+          setSeatInfo(null);
+        } else {
+          // Prefer bride seat if available
+          const brideSeat = verifyResult.rsvps.find(r => r.wedding_type === 'bride' && r.seat_table);
+          const anySeat = verifyResult.rsvps.find(r => r.seat_table);
+          const chosen = brideSeat || anySeat || verifyResult.rsvps[0];
+          setSeatInfo(chosen);
+        }
+      } catch (e) {
+        setSeatInfo(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSeat();
   }, []);
 
-  const loadSeats = async () => {
-    try {
-      const data = await mockApi.getSeats();
-      // Double-check all booleans are normalized
-      const normalized = data.map(seat => ({
-        ...seat,
-        occupied: toBoolean(seat.occupied),
-        isMySeat: toBoolean(seat.isMySeat)
-      }));
-      setSeats(normalized);
-    } catch (error) {
-      console.error('Error loading seats:', error);
+  const renderSeatText = () => {
+    if (!seatInfo || !seatInfo.seat_table) {
+      return t('seat.pending');
     }
+    return `${t('seat.tablePrefix')} ${seatInfo.seat_table}`;
   };
-
-  const tables = [1, 2, 3];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView style={styles.seatMapContainer}>
-        <View style={styles.seatMapHeader}>
-          <Text style={[styles.seatMapTitle, { color: theme.text }]}>座位地图</Text>
-          <Text style={[styles.seatMapSubtitle, { color: theme.textLight }]}>Table 3 - Seat 13</Text>
-        </View>
-
-        {tables.map(tableNum => (
-          <View key={tableNum} style={styles.tableSection}>
-            <Text style={[styles.tableLabel, { color: theme.primary }]}>Table {tableNum}</Text>
-            <View style={styles.tableGrid}>
-              {seats
-                .filter(seat => seat.tableNumber === tableNum)
-                .map(seat => (
-                  <View
-                    key={seat.id}
-                    style={[
-                      styles.seatItem,
-                      { borderColor: theme.secondary },
-                      toBoolean(seat.occupied) && { backgroundColor: theme.secondary, borderColor: theme.primary },
-                      toBoolean(seat.isMySeat) && { backgroundColor: theme.primary, borderColor: theme.primary }
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.seatNumber,
-                        { color: theme.textLight },
-                        toBoolean(seat.isMySeat) && { color: '#fff' }
-                      ]}
-                    >
-                      {seat.seatNumber}
-                    </Text>
-                    {(seat.guestName && seat.guestName !== '') && (
-                      <Text
-                        style={[
-                          styles.seatName,
-                          { color: theme.text },
-                          toBoolean(seat.isMySeat) && { color: '#fff' }
-                        ]}
-                      >
-                        {seat.guestName}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-            </View>
-          </View>
-        ))}
-
-        {/* Legend */}
-        <View style={styles.seatLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { borderColor: theme.secondary }]} />
-            <Text style={[styles.legendText, { color: theme.text }]}>空座位</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, styles.legendOccupied, { backgroundColor: theme.secondary, borderColor: theme.primary }]} />
-            <Text style={[styles.legendText, { color: theme.text }]}>已分配</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, styles.legendMySeat, { backgroundColor: theme.primary, borderColor: theme.primary }]} />
-            <Text style={[styles.legendText, { color: theme.text }]}>我的座位</Text>
-          </View>
-        </View>
-      </ScrollView>
+      <View style={styles.centerContainer}>
+        <Text style={[styles.seatMapTitle, { color: theme.text }]}>{t('seat.title')}</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 16 }} />
+        ) : (
+          <>
+            <Text style={[styles.seatMapSubtitle, { color: theme.textLight, marginTop: 16 }]}>
+              {renderSeatText()}
+            </Text>
+          </>
+        )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -912,7 +1562,20 @@ const SeatMapScreen = () => {
 // Videos Screen
 const VideosScreen = () => {
   const { theme } = useTheme();
-  const videos = mockData.videos;
+  const [videos, setVideos] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await realApi.getVideos();
+        setVideos(Array.isArray(data) ? data : []);
+      } catch (e) {
+        // Silently use empty array
+        setVideos([]);
+      }
+    };
+    load();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -944,10 +1607,137 @@ const VideosScreen = () => {
   );
 };
 
+// Collection Screen - saved photos
+const CollectionScreen = ({ navigation }) => {
+  const { theme } = useTheme();
+  const { t } = useLanguage();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const phone = await AsyncStorage.getItem('user_phone');
+        if (!phone) {
+          setItems([]);
+          setLoading(false);
+          return;
+        }
+        const data = await realApi.getMyCollections(phone);
+        const photos = Array.isArray(data)
+          ? data
+          : Array.isArray(data.photos)
+          ? data.photos
+          : [];
+        const baseUrl = realApi?.apiBaseUrl || '';
+        const normalized = photos.map(photo => {
+          const imageUrl =
+            photo.image_url && photo.image_url.startsWith('/')
+              ? `${baseUrl}${photo.image_url}`
+              : photo.image_url;
+          return {
+            id: photo.id,
+            type: 'photo',
+            userName: photo.user_name || 'Guest',
+            userAvatar: (photo.user_name && photo.user_name[0]) || '👤',
+            createdAt: photo.created_at,
+            imageUrl,
+            caption: photo.caption || '',
+            tags: [],
+            likes: 0,
+            totalComments: 0,
+            likedByMe: false,
+            savedByMe: true,
+          };
+        });
+        setItems(normalized);
+      } catch (e) {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    const unsubscribe = navigation.addListener('focus', load);
+    return unsubscribe;
+  }, [navigation]);
+
+  if (loading) {
+    return (
+      <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header with back button */}
+      <View style={[styles.themeHeader, { backgroundColor: theme.gradientStart }]}>
+        <TouchableOpacity
+          style={{ position: 'absolute', left: 20, top: 10, flexDirection: 'row', alignItems: 'center' }}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.themeTitle, { color: theme.text }]}>{t('settings.collection')}</Text>
+      </View>
+
+      {items.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Text style={{ color: theme.textLight }}>{t('settings.collection.desc')}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          renderItem={({ item }) => (
+            <View style={styles.photoPost}>
+              <View style={styles.postHeader}>
+                <Text style={styles.postAvatar}>{item.userAvatar}</Text>
+                <View style={styles.postUser}>
+                  <Text style={[styles.postUsername, { color: theme.text }]}>{item.userName}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.postImage, { backgroundColor: theme.gradientStart }]}
+                onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
+              >
+                {item.imageUrl ? (
+                  <Image
+                    source={{ uri: item.imageUrl }}
+                    style={styles.postImageImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.postImageEmoji}>No Image</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+          keyExtractor={item => `collection-${item.id}`}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </SafeAreaView>
+  );
+};
+
 // Timeline Screen
 const TimelineScreen = () => {
   const { theme } = useTheme();
-  const events = mockData.timeline;
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await realApi.getTimeline();
+        setEvents(Array.isArray(data) ? data : []);
+      } catch (e) {
+        // Silently use empty array
+        setEvents([]);
+      }
+    };
+    load();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -981,38 +1771,147 @@ const TimelineScreen = () => {
 // Settings Screen
 const SettingsScreen = ({ navigation }) => {
   const { theme } = useTheme();
-  const { language, setLanguage, languages } = useLanguage();
+  const { language, setLanguage, languages, t } = useLanguage();
+  const [userPhone, setUserPhone] = useState('');
 
-  const cycleLanguage = () => {
-    const order = ['en', 'ms', 'ja'];
-    const currentIndex = order.indexOf(language);
-    const next = order[(currentIndex + 1) % order.length];
-    setLanguage(next);
+  useEffect(() => {
+    const loadUserPhone = async () => {
+      try {
+        const phone = await AsyncStorage.getItem('user_phone');
+        if (phone) setUserPhone(phone);
+      } catch (e) {
+        // Ignore
+      }
+    };
+    loadUserPhone();
+  }, []);
+
+  const handleLogout = async () => {
+    Alert.alert(
+      t('settings.logout.title'),
+      t('settings.logout.message'),
+      [
+        {
+          text: t('settings.logout.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('settings.logout.confirm'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear user data
+              await AsyncStorage.multiRemove(['user_phone', 'user_role']);
+              // Navigate to login
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              Alert.alert(t('settings.logout.error'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const currentLangLabel = languages[language]?.nativeLabel || 'English';
 
   const settings = [
-    { icon: 'flask', title: 'API 测试', desc: '测试服务器连接', screen: 'ApiTest' },
-    { icon: 'notifications', title: '通知设置', desc: '管理推送通知', screen: null },
-    { icon: 'color-palette', title: '主题颜色', desc: theme.name, screen: 'ThemeSelection' },
-    { icon: 'language', title: '语言', desc: currentLangLabel, screen: null },
-    { icon: 'share-social', title: '分享应用', desc: '邀请朋友使用', screen: null },
-    { icon: 'information-circle', title: '关于', desc: '版本 1.0.0', screen: null },
-    { icon: 'help-circle', title: '帮助与支持', desc: '常见问题', screen: null }
+    {
+      icon: 'color-palette',
+      title: t('settings.theme'),
+      desc: t(`theme.${theme.id}.title`),
+      screen: 'ThemeSelection',
+    },
+    {
+      icon: 'bookmark',
+      title: t('settings.collection'),
+      desc: t('settings.collection.desc'),
+      screen: 'Collection',
+    },
+    {
+      icon: 'information-circle',
+      title: t('settings.about'),
+      desc: t('settings.about.desc'),
+      screen: null,
+    },
   ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.settingsList}>
+        {/* Current User Info */}
+        {userPhone && (
+          <View style={[styles.userInfoCard, { backgroundColor: '#fff' }]}>
+            <View style={styles.userInfoContent}>
+              <Ionicons name="person-circle" size={40} color={theme.primary} />
+              <View style={styles.userInfoText}>
+                <Text style={[styles.userInfoLabel, { color: theme.textLight }]}>{t('settings.currentUser')}</Text>
+                <Text style={[styles.userInfoPhone, { color: theme.text }]}>{userPhone}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Language Selector (2x2 grid) */}
+        <View style={[styles.settingsItem, { backgroundColor: '#fff' }]}>
+          <View style={styles.settingsLeft}>
+            <View style={[styles.settingsIcon, { backgroundColor: theme.secondary }]}>
+              <Ionicons name="language" size={24} color={theme.primary} />
+            </View>
+            <View style={styles.settingsText}>
+              <Text style={[styles.settingsTitle, { color: theme.text }]}>
+                {t('settings.language')} / Language
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  marginTop: 8,
+                }}
+              >
+                {Object.values(languages).map((lang) => (
+                  <TouchableOpacity
+                    key={lang.id}
+                    onPress={() => setLanguage(lang.id)}
+                    style={{
+                      width: '48%',
+                      marginBottom: 8,
+                      marginRight: '2%',
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor:
+                        language === lang.id ? theme.primary : theme.secondary,
+                      backgroundColor:
+                        language === lang.id ? theme.primary : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: language === lang.id ? '#fff' : theme.text,
+                      }}
+                    >
+                      {lang.nativeLabel}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Other settings */}
         {settings.map((setting, index) => (
           <TouchableOpacity
             key={index}
             style={[styles.settingsItem, { backgroundColor: '#fff' }]}
             onPress={() => {
-              if (setting.icon === 'language') {
-                cycleLanguage();
-              } else if (setting.screen) {
+              if (setting.screen) {
                 navigation.navigate(setting.screen);
               }
             }}
@@ -1029,45 +1928,69 @@ const SettingsScreen = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color={theme.textLight} />
           </TouchableOpacity>
         ))}
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: theme.secondary }]}
+          onPress={handleLogout}
+        >
+          <View style={styles.settingsLeft}>
+            <View style={[styles.settingsIcon, { backgroundColor: '#ff4444' }]}>
+              <Ionicons name="log-out" size={24} color="#fff" />
+            </View>
+            <View style={styles.settingsText}>
+              <Text style={[styles.logoutText, { color: '#ff4444' }]}>{t('settings.logout')}</Text>
+              <Text style={[styles.settingsDesc, { color: theme.textLight }]}>{t('settings.logout.desc')}</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.textLight} />
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 // Theme Selection Screen
-const ThemeSelectionScreen = () => {
+const ThemeSelectionScreen = ({ navigation }) => {
   const { theme, changeTheme } = useTheme();
+  const { t } = useLanguage();
   const allThemes = Object.values(themes);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.themeSelection}>
         <View style={styles.themeHeader}>
-          <Text style={[styles.themeTitle, { color: theme.text }]}>选择主题</Text>
-          <Text style={[styles.themeSubtitle, { color: theme.textLight }]}>选择您喜欢的颜色主题</Text>
+          <TouchableOpacity
+            style={{ position: 'absolute', left: 20, top: 10, flexDirection: 'row', alignItems: 'center' }}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.themeTitle, { color: theme.text }]}>{t('theme.title')}</Text>
+          <Text style={[styles.themeSubtitle, { color: theme.textLight }]}>{t('theme.subtitle')}</Text>
         </View>
         <View style={styles.themesGrid}>
-          {allThemes.map(t => (
+          {allThemes.map(themeItem => (
             <TouchableOpacity
-              key={t.id}
+              key={themeItem.id}
               style={[
                 styles.themeCard,
                 { borderColor: theme.secondary },
-                theme.id === t.id && { borderColor: theme.primary, borderWidth: 3 }
+                theme.id === themeItem.id && { borderColor: theme.primary, borderWidth: 3 }
               ]}
-              onPress={() => changeTheme(t.id)}
+              onPress={() => changeTheme(themeItem.id)}
             >
-              <View style={[styles.themePreview, { backgroundColor: t.gradientStart }]}>
-                <Text style={styles.themePreviewIcon}>{t.icon}</Text>
+              <View style={[styles.themePreview, { backgroundColor: themeItem.gradientStart }]}>
+                <Text style={styles.themePreviewIcon}>{themeItem.icon}</Text>
               </View>
-              <Text style={[styles.themeName, { color: theme.text }]}>{t.name}</Text>
-              <Text style={[styles.themeDescription, { color: theme.textLight }]}>{t.description}</Text>
+              <Text style={[styles.themeName, { color: theme.text }]}>{t(`theme.${themeItem.id}.title`)}</Text>
+              <Text style={[styles.themeDescription, { color: theme.textLight }]}>{t(`theme.${themeItem.id}.desc`)}</Text>
               <View style={styles.themeColors}>
-                <View style={[styles.themeColorDot, { backgroundColor: t.primary }]} />
-                <View style={[styles.themeColorDot, { backgroundColor: t.secondary }]} />
-                <View style={[styles.themeColorDot, { backgroundColor: t.accent }]} />
+                <View style={[styles.themeColorDot, { backgroundColor: themeItem.primary }]} />
+                <View style={[styles.themeColorDot, { backgroundColor: themeItem.secondary }]} />
+                <View style={[styles.themeColorDot, { backgroundColor: themeItem.accent }]} />
               </View>
-              {theme.id === t.id && (
+              {theme.id === themeItem.id && (
                 <View style={[styles.themeCheckmark, { backgroundColor: theme.primary }]}>
                   <Ionicons name="checkmark" size={20} color="#fff" />
                 </View>
@@ -1129,6 +2052,10 @@ export default function App() {
               component={TimelineScreen}
             />
             <Stack.Screen
+              name="Collection"
+              component={CollectionScreen}
+            />
+            <Stack.Screen
               name="ThemeSelection"
               component={ThemeSelectionScreen}
             />
@@ -1188,7 +2115,9 @@ const styles = StyleSheet.create({
   },
   // Home Screen
   heroSection: {
-    padding: 30,
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     alignItems: 'center'
   },
   heroTitle: {
@@ -1205,7 +2134,9 @@ const styles = StyleSheet.create({
     fontSize: 16
   },
   countdownBox: {
-    margin: 20,
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 20,
     padding: 20,
     borderRadius: 15,
     shadowColor: '#000',
@@ -1263,7 +2194,9 @@ const styles = StyleSheet.create({
   featuresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 10
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 20
   },
   featureCard: {
     width: '47%',
@@ -1373,10 +2306,24 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative'
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: '#E5D4C8',
+    borderRadius: 20,
   },
   postImageEmoji: {
     fontSize: 60
+  },
+  postImageImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16
+  },
+  videoPlayer: {
+    width: '100%',
+    aspectRatio: 9 / 16,
+    borderRadius: 18,
+    backgroundColor: '#000'
   },
   postImageOverlay: {
     position: 'absolute',
@@ -1545,7 +2492,8 @@ const styles = StyleSheet.create({
     borderRadius: 20
   },
   tagOptionText: {
-    fontSize: 14
+    fontSize: 14,
+    paddingHorizontal: 2
   },
   captionSection: {
     padding: 20
@@ -1553,9 +2501,11 @@ const styles = StyleSheet.create({
   captionInput: {
     borderWidth: 2,
     borderRadius: 10,
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     fontSize: 16,
-    textAlignVertical: 'top'
+    textAlignVertical: 'top',
+    lineHeight: 20
   },
   uploadButton: {
     margin: 20,
@@ -1765,6 +2715,32 @@ const styles = StyleSheet.create({
   settingsList: {
     padding: 20
   },
+  userInfoCard: {
+    padding: 20,
+    marginBottom: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  userInfoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15
+  },
+  userInfoText: {
+    flex: 1
+  },
+  userInfoLabel: {
+    fontSize: 12,
+    marginBottom: 4
+  },
+  userInfoPhone: {
+    fontSize: 16,
+    fontWeight: '600'
+  },
   settingsItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1777,6 +2753,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    marginTop: 10,
+    marginBottom: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600'
   },
   settingsLeft: {
     flexDirection: 'row',

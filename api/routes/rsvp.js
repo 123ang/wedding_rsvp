@@ -94,5 +94,104 @@ router.post('/groom-rsvp', async (req, res) => {
   }
 });
 
+// Public endpoint: Get wedding info (bride or groom)
+router.get('/wedding-info', async (req, res) => {
+  try {
+    const rawType = req.query.wedding_type || '';
+    const wedding_type = rawType.toString().trim().toLowerCase();
+    
+    // Return wedding info based on type
+    if (wedding_type === 'bride') {
+      return res.json({
+        groomShortName: 'JS',
+        brideShortName: 'PS',
+        date: '2026-01-02',
+        venue: 'Fu Hotel',
+        time: '18:00'
+      });
+    } else {
+      // Default to groom wedding
+      return res.json({
+        groomShortName: 'JS',
+        brideShortName: 'PS',
+        date: '2026-01-04',
+        venue: 'Starview Restaurant',
+        time: '18:00'
+      });
+    }
+  } catch (error) {
+    console.error('Wedding info error:', error);
+    res.status(500).json({
+      message: "Unable to get wedding info.",
+      success: false
+    });
+  }
+});
+
+// Public endpoint: Verify phone number for guest login (no auth required)
+router.get('/verify-phone/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+    
+    if (!phone) {
+      return res.status(400).json({
+        message: "Phone number is required.",
+        success: false
+      });
+    }
+
+    // Normalize phone (remove non-digits)
+    const normalizedPhone = phone.replace(/\D/g, '');
+
+    // Search for phone in RSVPs (check both bride and groom)
+    const [rsvps] = await pool.execute(
+      'SELECT id, name, email, phone, wedding_type, attending, seat_table FROM rsvps WHERE phone = ? OR phone LIKE ?',
+      [normalizedPhone, `%${normalizedPhone}%`]
+    );
+
+    if (rsvps.length === 0) {
+      return res.status(404).json({
+        message: "Phone number not found in RSVPs.",
+        success: false,
+        found: false
+      });
+    }
+
+    // Prefer bride wedding_type if multiple records exist
+    let primaryGuest = rsvps[0];
+    const brideRecord = rsvps.find(r => r.wedding_type === 'bride');
+    if (brideRecord) {
+      primaryGuest = brideRecord;
+    }
+
+    // Return the primary match (and all matches for debugging/use if needed)
+    res.json({
+      message: "Phone number found.",
+      success: true,
+      found: true,
+      guest: {
+        name: primaryGuest.name,
+        phone: primaryGuest.phone,
+        wedding_type: primaryGuest.wedding_type
+      },
+      // Return all RSVPs for this phone in case they have multiple
+      rsvps: rsvps.map(r => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        wedding_type: r.wedding_type,
+        attending: r.attending,
+        seat_table: r.seat_table
+      }))
+    });
+  } catch (error) {
+    console.error('Verify phone error:', error);
+    res.status(500).json({
+      message: "Unable to verify phone number.",
+      success: false
+    });
+  }
+});
+
 module.exports = router;
 

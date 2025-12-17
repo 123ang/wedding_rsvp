@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 1024 * 1024 * 1024, // 1GB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
@@ -46,9 +46,29 @@ const upload = multer({
   }
 });
 
+// Ensure photos table has user_phone column (for legacy databases)
+const ensurePhotosHasUserPhone = async () => {
+  try {
+    await pool.execute('SELECT user_phone FROM photos LIMIT 1');
+  } catch (e) {
+    try {
+      await pool.execute(
+        'ALTER TABLE photos ADD COLUMN user_phone VARCHAR(32) NULL AFTER user_name'
+      );
+      console.log('[Photos] Added user_phone column to photos table');
+    } catch (err) {
+      console.error('[Photos] Failed to add user_phone column:', err.message || err);
+      // Let the original error surface so we notice it
+      throw err;
+    }
+  }
+};
+
 // Get all photos (paginated)
 router.get('/', async (req, res) => {
   try {
+    await ensurePhotosHasUserPhone();
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
@@ -120,6 +140,7 @@ router.get('/', async (req, res) => {
 // Get single photo with details
 router.get('/:id', async (req, res) => {
   try {
+    await ensurePhotosHasUserPhone();
     const { id } = req.params;
 
     const [photos] = await pool.execute(
@@ -175,23 +196,47 @@ router.get('/:id', async (req, res) => {
 // Upload photo
 router.post('/upload', upload.single('photo'), async (req, res) => {
   try {
+    await ensurePhotosHasUserPhone();
+    console.log('[Photo Upload] Request received:', {
+      hasFile: !!req.file,
+      fileName: req.file?.filename,
+      body: req.body,
+      headers: Object.keys(req.headers)
+    });
+
     const { user_name, user_phone, caption, tags } = req.body;
 
     if (!req.file) {
+      console.error('[Photo Upload] No file received');
       return res.status(400).json({ success: false, message: 'No photo file provided' });
     }
 
-    if (!user_name || !user_phone) {
-      return res.status(400).json({ success: false, message: 'User name and phone are required' });
+    if (!user_phone) {
+      console.error('[Photo Upload] Missing required fields:', { user_phone: !!user_phone });
+      return res.status(400).json({ success: false, message: 'User phone is required' });
     }
 
     // Generate image URL (relative path)
     const imageUrl = `/uploads/photos/${req.file.filename}`;
 
+    // Resolve display name from RSVPs
+    let resolvedName = user_name || null;
+    try {
+      const [rsvpRows] = await pool.execute(
+        'SELECT name FROM rsvps WHERE phone = ? OR phone LIKE ? LIMIT 1',
+        [user_phone, `%${user_phone}%`]
+      );
+      if (rsvpRows.length > 0) {
+        resolvedName = rsvpRows[0].name;
+      }
+    } catch (e) {
+      // ignore lookup errors, fallback to provided name
+    }
+
     // Insert photo
     const [result] = await pool.execute(
       'INSERT INTO photos (user_name, user_phone, image_url, caption) VALUES (?, ?, ?, ?)',
-      [user_name, user_phone, imageUrl, caption || null]
+      [resolvedName || 'Guest', user_phone, imageUrl, caption || null]
     );
 
     const photoId = result.insertId;

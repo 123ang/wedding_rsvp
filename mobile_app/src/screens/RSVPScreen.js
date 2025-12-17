@@ -1,9 +1,9 @@
 /**
  * RSVP Screen
- * Submit RSVP to real API
+ * View RSVP information from real API (read-only)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,9 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import realApi from '../services/realApi';
-import { useMutation } from '../hooks/useApi';
 import { useLanguage } from '../contexts/LanguageContext';
 
 // Simple Select Component that works on both web and mobile
@@ -87,90 +88,48 @@ const SimpleSelect = ({ value, options, onValueChange, placeholder }) => {
 export default function RSVPScreen({ navigation, route }) {
   const weddingType = route?.params?.type || 'bride'; // 'bride' or 'groom'
   const { t } = useLanguage();
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    attending: true,
-    number_of_guests: '1',
-    organization: '',
-    relationship: '',
-    remark: '',
-  });
+  const [rsvp, setRsvp] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const { mutate: submitRSVP, loading } = useMutation(
-    weddingType === 'bride' ? realApi.submitBrideRSVP : realApi.submitGroomRSVP
-  );
+  useEffect(() => {
+    const loadRsvp = async () => {
+      try {
+        const phone = await AsyncStorage.getItem('user_phone');
+        if (!phone) {
+          Alert.alert(t('rsvp.errorTitle'), '请先登录后再查看出席信息。', [
+            { text: 'OK', onPress: () => navigation.goBack() },
+          ]);
+          return;
+        }
 
-  const updateField = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+        const verifyResult = await realApi.verifyPhone(phone);
+        if (!verifyResult.found || !verifyResult.rsvps || verifyResult.rsvps.length === 0) {
+          Alert.alert(t('rsvp.errorTitle'), t('rsvp.notFound'));
+          navigation.goBack();
+          return;
+        }
+
+        // Prefer RSVP that matches this screen's weddingType
+        const match = verifyResult.rsvps.find((r) => r.wedding_type === weddingType) || verifyResult.rsvps[0];
+        setRsvp(match);
+      } catch (error) {
+        Alert.alert(t('rsvp.errorTitle'), '无法加载出席信息，请稍后再试。');
+        navigation.goBack();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRsvp();
+  }, [navigation, route, t, weddingType]);
+
+  const renderSeatInfo = () => {
+    if (!rsvp) return '';
+    if (!rsvp.seat_table) {
+      return t('seat.pending');
+    }
+    return `${t('seat.tablePrefix')} ${rsvp.seat_table}`;
   };
-
-  const handleSubmit = async () => {
-    // Validation
-    if (!formData.name.trim()) {
-      Alert.alert(t('rsvp.errorTitle'), t('rsvp.field.name'));
-      return;
-    }
-    if (!formData.phone.trim()) {
-      Alert.alert(t('rsvp.errorTitle'), t('rsvp.field.phone'));
-      return;
-    }
-
-    try {
-      const payload = {
-        name: formData.name.trim(),
-        email: formData.email.trim() || null,
-        phone: formData.phone.trim(),
-        attending: formData.attending === true,
-        number_of_guests: parseInt(formData.number_of_guests) || 1,
-      };
-
-      // Add optional fields
-      if (weddingType === 'groom' && formData.organization) {
-        payload.organization = formData.organization;
-      }
-      if (formData.relationship) {
-        payload.relationship = formData.relationship;
-      }
-      if (formData.remark) {
-        payload.remark = formData.remark;
-      }
-
-      await submitRSVP(payload);
-      
-      Alert.alert(
-        t('rsvp.successTitle'),
-        t('rsvp.successMessage'),
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
-    } catch (error) {
-      Alert.alert(
-        t('rsvp.errorTitle'),
-        error.response?.data?.message || error.message || 'Failed to submit RSVP. Please try again.'
-      );
-    }
-  };
-
-  // Options for selects
-  const guestOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => ({
-    value: num.toString(),
-    label: t('rsvp.guests.label', { count: num }),
-  }));
-
-  const organizationOptions = [
-    { value: '', label: '请选择' },
-    { value: '新郎同事', label: '新郎同事' },
-    { value: '新郎朋友', label: '新郎朋友' },
-    { value: '新郎家人', label: '新郎家人' },
-    { value: '其他', label: '其他' },
-  ];
 
   return (
     <KeyboardAvoidingView
@@ -179,135 +138,69 @@ export default function RSVPScreen({ navigation, route }) {
     >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
           <Text style={styles.title}>
             {weddingType === 'bride' ? t('rsvp.titleBride') : t('rsvp.titleGroom')}
           </Text>
-          <Text style={styles.subtitle}>{t('rsvp.subtitle')}</Text>
         </View>
 
         <View style={styles.form}>
-          {/* Name */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('rsvp.field.name')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="请输入您的姓名"
-              value={formData.name}
-              onChangeText={(text) => updateField('name', text)}
-            />
-          </View>
-
-          {/* Email */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('rsvp.field.email')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="example@email.com"
-              value={formData.email}
-              onChangeText={(text) => updateField('email', text)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          {/* Phone */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('rsvp.field.phone')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="01X-XXXXXXX"
-              value={formData.phone}
-              onChangeText={(text) => updateField('phone', text)}
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          {/* Attending */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('rsvp.field.attending')}</Text>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity
-                style={[styles.radioButton, formData.attending === true && styles.radioButtonActive]}
-                onPress={() => updateField('attending', true)}
-              >
-                <Text style={[styles.radioText, formData.attending === true && styles.radioTextActive]}>
-                  {t('rsvp.attending.yes')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.radioButton, formData.attending === false && styles.radioButtonActive]}
-                onPress={() => updateField('attending', false)}
-              >
-                <Text style={[styles.radioText, formData.attending === false && styles.radioTextActive]}>
-                  {t('rsvp.attending.no')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Number of Guests */}
-          {formData.attending === true && (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('rsvp.field.guests')}</Text>
-              <SimpleSelect
-                value={formData.number_of_guests}
-                options={guestOptions}
-                onValueChange={(value) => updateField('number_of_guests', value)}
-                placeholder="选择人数"
-              />
-            </View>
+          {loading && (
+            <ActivityIndicator size="large" color="#FF6B9D" style={{ marginTop: 20 }} />
           )}
 
-          {/* Organization (Groom only) */}
-          {weddingType === 'groom' && (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('rsvp.field.organization')}</Text>
-              <SimpleSelect
-                value={formData.organization}
-                options={organizationOptions}
-                onValueChange={(value) => updateField('organization', value)}
-                placeholder="请选择"
-              />
-            </View>
+          {!loading && rsvp && (
+            <>
+              {/* Name */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>{t('rsvp.field.name')}</Text>
+                <Text style={styles.valueText}>{rsvp.name}</Text>
+              </View>
+
+              {/* Email */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>{t('rsvp.field.email')}</Text>
+                <Text style={styles.valueText}>{rsvp.email || '-'}</Text>
+              </View>
+
+              {/* Phone */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>{t('rsvp.field.phone')}</Text>
+                <Text style={styles.valueText}>{rsvp.phone}</Text>
+              </View>
+
+              {/* Wedding Type */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>{t('rsvp.field.weddingType') || 'Wedding'}</Text>
+                <Text style={styles.valueText}>
+                  {rsvp.wedding_type === 'bride' ? 'Bride Wedding' : 'Groom Wedding'}
+                </Text>
+              </View>
+
+              {/* Attending */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>{t('rsvp.field.attending')}</Text>
+                <Text style={styles.valueText}>
+                  {rsvp.attending ? t('rsvp.attending.yes') : t('rsvp.attending.no')}
+                </Text>
+              </View>
+
+              {/* Number of Guests */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>{t('rsvp.field.guests')}</Text>
+                <Text style={styles.valueText}>{rsvp.number_of_guests || 1}</Text>
+              </View>
+
+              {/* Seat Table from rsvps.seat_table */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Seat</Text>
+                <Text style={styles.valueText}>{renderSeatInfo()}</Text>
+              </View>
+            </>
           )}
-
-          {/* Relationship */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('rsvp.field.relationship')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="例如：新郎朋友、新娘同事"
-              value={formData.relationship}
-              onChangeText={(text) => updateField('relationship', text)}
-            />
-          </View>
-
-          {/* Remark */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('rsvp.field.remark')}</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="有什么想告诉我们的吗？"
-              value={formData.remark}
-              onChangeText={(text) => updateField('remark', text)}
-              multiline={Boolean(true)}
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, loading === true && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={Boolean(loading)}
-          >
-            {loading === true ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.submitButtonText}>{t('rsvp.submit')}</Text>
-            )}
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -331,6 +224,18 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     alignItems: 'center',
   },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backText: {
+    color: '#fff',
+    marginLeft: 4,
+    fontSize: 14,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -346,6 +251,10 @@ const styles = StyleSheet.create({
   },
   fieldGroup: {
     marginBottom: 20,
+  },
+  valueText: {
+    fontSize: 16,
+    color: '#333',
   },
   label: {
     fontSize: 16,

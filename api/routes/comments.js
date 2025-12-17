@@ -73,10 +73,10 @@ router.post('/', async (req, res) => {
   try {
     const { photo_id, user_name, user_phone, text } = req.body;
 
-    if (!photo_id || !user_name || !user_phone || !text) {
+    if (!photo_id || !user_phone || !text) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Photo ID, user name, user phone, and text are required' 
+        message: 'Photo ID, user phone, and text are required' 
       });
     }
 
@@ -86,10 +86,24 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Photo not found' });
     }
 
+    // Resolve display name from RSVPs
+    let resolvedName = user_name || null;
+    try {
+      const [rsvpRows] = await pool.execute(
+        'SELECT name FROM rsvps WHERE phone = ? OR phone LIKE ? LIMIT 1',
+        [user_phone, `%${user_phone}%`]
+      );
+      if (rsvpRows.length > 0) {
+        resolvedName = rsvpRows[0].name;
+      }
+    } catch (e) {
+      // ignore lookup errors, fallback to provided name
+    }
+
     // Insert comment
     const [result] = await pool.execute(
       'INSERT INTO comments (photo_id, user_name, user_phone, text) VALUES (?, ?, ?, ?)',
-      [photo_id, user_name, user_phone, text]
+      [photo_id, resolvedName || 'Guest', user_phone, text]
     );
 
     const commentId = result.insertId;

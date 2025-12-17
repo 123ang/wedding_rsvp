@@ -58,20 +58,45 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      // Regular guest login: Use RSVPs table from backend and match by normalized phone number
-      const all = await realApi.getAllRSVPs();
+      // Regular guest login: Verify phone number using public endpoint
+      let verifyResult;
+      try {
+        verifyResult = await realApi.verifyPhone(target);
+      } catch (apiError) {
+        // Handle network/auth errors gracefully
+        if (apiError.code === 'ERR_NETWORK') {
+          Alert.alert(
+            t('login.errorTitle'),
+            '无法连接到服务器。\n\n请检查：\n• 网络连接\n• API服务器是否运行\n• 手机和电脑是否在同一网络'
+          );
+          return;
+        }
+        if (apiError.response?.status === 404) {
+          // Phone not found
+          Alert.alert(t('login.notFoundTitle'), t('login.notFoundMessage'));
+          return;
+        }
+        // Re-throw other errors to be handled by outer catch
+        throw apiError;
+      }
 
-      const match = Array.isArray(all)
-        ? all.find((r) => normalizePhone(r.phone) === target)
-        : null;
-
-      if (!match) {
+      // Check if phone was found
+      if (!verifyResult.found || !verifyResult.guest) {
         Alert.alert(t('login.notFoundTitle'), t('login.notFoundMessage'));
         return;
       }
 
-      // Save user phone (normalized) for later API calls
+      const match = verifyResult.guest;
+
+      // Save user phone (normalized) and wedding type for later API calls
       await AsyncStorage.setItem('user_phone', target);
+      await AsyncStorage.setItem('user_role', 'guest');
+      
+      // Store wedding_type (bride or groom) in lowercase to load correct wedding info
+      if (match.wedding_type) {
+        const normalizedType = String(match.wedding_type).trim().toLowerCase();
+        await AsyncStorage.setItem('wedding_type', normalizedType);
+      }
 
       Alert.alert('Welcome 🎉', `Hello ${match.name || 'guest'}!`, [
         {
@@ -80,13 +105,23 @@ export default function LoginScreen({ navigation }) {
         },
       ]);
     } catch (error) {
-      console.log('[Login] error:', error);
-      Alert.alert(
-        t('login.errorTitle'),
-        error?.response?.data?.message ||
-          error?.message ||
-          'Login failed. Please try again.'
-      );
+      // Only log unexpected errors (not network/auth errors which are already handled)
+      if (error.response && error.response.status !== 401 && error.response.status !== 403) {
+        console.log('[Login] Unexpected error:', error.response.status, error.response.data);
+      }
+      
+      // Show user-friendly error message for any unhandled errors
+      let errorMessage = '登录失败，请重试。';
+      
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = '无法连接到服务器。请检查网络连接。';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message && !error.message.includes('Network Error')) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert(t('login.errorTitle'), errorMessage);
     } finally {
       setLoading(false);
     }

@@ -33,8 +33,7 @@
         "WRITE_EXTERNAL_STORAGE"
       ]
     },
-    "web": {
-    },
+    "web": {},
     "extra": {
       "eas": {
         "projectId": "your-project-id-here"
@@ -46,7 +45,8 @@
         {
           "photosPermission": "The app needs access to your photos to upload wedding memories."
         }
-      ]
+      ],
+      "expo-video"
     ]
   }
 }

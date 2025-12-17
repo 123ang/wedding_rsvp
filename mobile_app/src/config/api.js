@@ -4,13 +4,16 @@ import Constants from 'expo-constants';
 // Determine if we're in development or production
 const ENV = {
   dev: {
-    apiUrl: 'http://192.168.1.100:3002/api', // Replace with your computer's local IP
-    // Or use your VPS IP for testing: 'http://your_vps_ip:3002/api'
+    // LOCAL DEVELOPMENT - Change this to your computer's IP when testing on Android
+    // Find your IP: Windows: ipconfig | findstr IPv4, Mac/Linux: ifconfig
+    // Note: Use your computer's IP, NOT localhost (localhost won't work from Android)
+    apiUrl: 'http://192.168.100.3:3001/api', // Your local IP for development (port 3001)
   },
   staging: {
     apiUrl: 'https://jsang-psong-wedding.com/api',
   },
   prod: {
+    // PRODUCTION - VPS domain
     apiUrl: 'https://jsang-psong-wedding.com/api',
   },
 };
