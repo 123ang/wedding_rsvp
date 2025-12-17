@@ -74,7 +74,8 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
 
     // Get photos with like and comment counts
-    const [photos] = await pool.execute(
+    // Use pool.query (text protocol) to avoid prepared-statement LIMIT/OFFSET issues
+    const [photos] = await pool.query(
       `SELECT 
         p.id,
         p.user_name,

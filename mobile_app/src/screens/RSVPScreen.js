@@ -93,30 +93,72 @@ export default function RSVPScreen({ navigation, route }) {
 
   useEffect(() => {
     const loadRsvp = async () => {
+      console.log('[RSVP Screen] Loading RSVP data...');
+      console.log('[RSVP Screen] Wedding type:', weddingType);
       try {
         const phone = await AsyncStorage.getItem('user_phone');
+        console.log('[RSVP Screen] User phone from storage:', phone ? `${phone.substring(0, 3)}***` : 'NOT FOUND');
         if (!phone) {
+          console.log('[RSVP Screen] ERROR: No phone number found in storage');
           Alert.alert(t('rsvp.errorTitle'), '请先登录后再查看出席信息。', [
             { text: 'OK', onPress: () => navigation.goBack() },
           ]);
           return;
         }
 
+        console.log('[RSVP Screen] Calling verifyPhone API...');
         const verifyResult = await realApi.verifyPhone(phone);
+        console.log('[RSVP Screen] verifyPhone response:', {
+          found: verifyResult.found,
+          rsvpsCount: verifyResult.rsvps?.length || 0,
+          rsvps: verifyResult.rsvps?.map(r => ({
+            id: r.id,
+            name: r.name,
+            wedding_type: r.wedding_type,
+            attending: r.attending
+          })) || []
+        });
+        
         if (!verifyResult.found || !verifyResult.rsvps || verifyResult.rsvps.length === 0) {
+          console.log('[RSVP Screen] ERROR: No RSVPs found for this phone number');
           Alert.alert(t('rsvp.errorTitle'), t('rsvp.notFound'));
           navigation.goBack();
           return;
         }
 
         // Prefer RSVP that matches this screen's weddingType
-        const match = verifyResult.rsvps.find((r) => r.wedding_type === weddingType) || verifyResult.rsvps[0];
+        // If user has bride_groom type, show it for both bride and groom screens
+        let match = verifyResult.rsvps.find((r) => r.wedding_type === weddingType);
+        if (!match) {
+          // Check if user has bride_groom type (show it for both bride and groom screens)
+          match = verifyResult.rsvps.find((r) => r.wedding_type === 'bride_groom');
+        }
+        // Fallback to first RSVP if no match found
+        if (!match) {
+          match = verifyResult.rsvps[0];
+        }
+        console.log('[RSVP Screen] Selected RSVP match:', {
+          id: match.id,
+          name: match.name,
+          wedding_type: match.wedding_type,
+          attending: match.attending,
+          guests: match.number_of_guests,
+          seat_table: match.seat_table
+        });
         setRsvp(match);
+        console.log('[RSVP Screen] RSVP data loaded successfully');
       } catch (error) {
+        console.error('[RSVP Screen] ERROR loading RSVP:', error);
+        console.error('[RSVP Screen] Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
         Alert.alert(t('rsvp.errorTitle'), '无法加载出席信息，请稍后再试。');
         navigation.goBack();
       } finally {
         setLoading(false);
+        console.log('[RSVP Screen] Loading complete');
       }
     };
 
@@ -140,7 +182,6 @@ export default function RSVPScreen({ navigation, route }) {
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>
             {weddingType === 'bride' ? t('rsvp.titleBride') : t('rsvp.titleGroom')}
@@ -176,7 +217,9 @@ export default function RSVPScreen({ navigation, route }) {
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>{t('rsvp.field.weddingType') || 'Wedding'}</Text>
                 <Text style={styles.valueText}>
-                  {rsvp.wedding_type === 'bride' ? 'Bride Wedding' : 'Groom Wedding'}
+                  {rsvp.wedding_type === 'bride' ? 'Bride Wedding' : 
+                   rsvp.wedding_type === 'groom' ? 'Groom Wedding' :
+                   rsvp.wedding_type === 'bride_groom' ? 'Bride & Groom Wedding' : 'Wedding'}
                 </Text>
               </View>
 

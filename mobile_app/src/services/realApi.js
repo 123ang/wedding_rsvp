@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ENV from '../config/api';
 
 // Create axios instance
+console.log('[API] Initializing API client with baseURL:', ENV.apiUrl);
 const apiClient = axios.create({
   baseURL: ENV.apiUrl,
   timeout: 15000,
@@ -31,7 +32,9 @@ apiClient.interceptors.request.use(
       console.error('Error reading auth from storage:', error);
     }
     
-    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+    const fullUrl = `${config.baseURL}${config.url}`;
+    console.log(`[API] ${config.method?.toUpperCase()} ${fullUrl}`);
+    console.log(`[API] Base URL: ${config.baseURL}`);
     return config;
   },
   (error) => {
@@ -47,14 +50,27 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Only log non-network errors (network errors are expected if API is down)
+    // Log all errors with full details
     if (error.response) {
       console.error(`[API] Response error ${error.response.status}: ${error.config?.url}`);
+      console.error(`[API] Error data:`, error.response.data);
     } else if (error.code === 'ECONNABORTED') {
-      console.log(`[API] Request timeout: ${error.config?.url}`);
+      console.error(`[API] Request timeout: ${error.config?.url}`);
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      console.error(`[API] Network error - Cannot reach server:`, {
+        code: error.code,
+        message: error.message,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL
+      });
     } else {
-      // Network error - don't log, it's expected if API is not running
-      // console.log(`[API] Network error: ${error.config?.url}`);
+      console.error(`[API] Network error:`, {
+        code: error.code,
+        message: error.message,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        fullError: error
+      });
     }
     
     if (error.response?.status === 401) {
@@ -123,10 +139,27 @@ const realApi = {
 
   // Public - Verify phone number for guest login (no auth required)
   verifyPhone: async (phone) => {
+    console.log('[API] verifyPhone called with phone:', phone ? `${phone.substring(0, 3)}***` : 'null');
     // Normalize phone (remove non-digits)
     const normalizedPhone = phone.replace(/\D/g, '');
-    const response = await apiClient.get(`/verify-phone/${normalizedPhone}`);
-    return response.data;
+    console.log('[API] Normalized phone:', normalizedPhone ? `${normalizedPhone.substring(0, 3)}***` : 'null');
+    console.log('[API] Calling GET /verify-phone/' + normalizedPhone);
+    try {
+      const response = await apiClient.get(`/verify-phone/${normalizedPhone}`);
+      console.log('[API] verifyPhone response:', {
+        status: response.status,
+        found: response.data?.found,
+        rsvpsCount: response.data?.rsvps?.length || 0
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[API] verifyPhone error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      throw error;
+    }
   },
 
   // Admin - Update payment
@@ -188,12 +221,30 @@ const realApi = {
   },
 
   uploadPhoto: async (formData) => {
-    const response = await apiClient.post('/photos/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+    console.log('[API] uploadPhoto called');
+    console.log('[API] FormData keys:', Object.keys(formData));
+    console.log('[API] Calling POST /photos/upload');
+    try {
+      const response = await apiClient.post('/photos/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('[API] uploadPhoto response:', {
+        status: response.status,
+        success: response.data?.success,
+        photoId: response.data?.photo?.id || response.data?.id
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[API] uploadPhoto error:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      throw error;
+    }
   },
 
   deletePhoto: async (photoId, userPhone) => {

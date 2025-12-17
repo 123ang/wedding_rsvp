@@ -13,6 +13,7 @@ import {
   Alert,
   Dimensions,
   KeyboardAvoidingView,
+  RefreshControl,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -236,6 +237,7 @@ const HomeScreen = ({ navigation }) => {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [weddingInfo, setWeddingInfo] = useState({ groomShortName: 'JS', brideShortName: 'PS', date: '2026-01-04', venue: 'Starview Restaurant', time: '18:00' });
   const [weddingTypeState, setWeddingTypeState] = useState(null);
+  const [isBrideGroom, setIsBrideGroom] = useState(false);
   
   // Load wedding type on mount to set default
   useEffect(() => {
@@ -286,6 +288,23 @@ const HomeScreen = ({ navigation }) => {
   useEffect(() => {
     console.log('[Home] mounted');
     const loadInfo = async () => {
+      // First, test API connectivity
+      try {
+        console.log('[Home] Testing API connectivity...');
+        const healthCheck = await realApi.healthCheck();
+        console.log('[Home] ✅ API is reachable:', healthCheck);
+      } catch (error) {
+        console.error('[Home] ❌ API connectivity test FAILED:', {
+          message: error.message,
+          code: error.code,
+          baseURL: 'https://jsang-psong-wedding.com/api'
+        });
+        console.error('[Home] ⚠️  Cannot reach API server. Check:');
+        console.error('[Home]   1. Is phone on same network as server?');
+        console.error('[Home]   2. Can you open https://jsang-psong-wedding.com/health in phone browser?');
+        console.error('[Home]   3. Is SSL certificate valid?');
+      }
+      
       try {
         // Get wedding_type from storage to load correct wedding info
         const weddingType = await AsyncStorage.getItem('wedding_type');
@@ -298,6 +317,23 @@ const HomeScreen = ({ navigation }) => {
         ]);
         if (info && info.groomShortName) {
           setWeddingInfo(info);
+        }
+        
+        // Check if user has both bride and groom RSVPs (or bride_groom type)
+        const phone = await AsyncStorage.getItem('user_phone');
+        if (phone) {
+          try {
+            const verifyResult = await realApi.verifyPhone(phone);
+            if (verifyResult.found && verifyResult.rsvps && verifyResult.rsvps.length > 0) {
+              // Check if user has bride_groom type OR has both separate bride and groom RSVPs
+              const hasBrideGroom = verifyResult.rsvps.some(r => r.wedding_type === 'bride_groom');
+              const hasBride = verifyResult.rsvps.some(r => r.wedding_type === 'bride');
+              const hasGroom = verifyResult.rsvps.some(r => r.wedding_type === 'groom');
+              setIsBrideGroom(hasBrideGroom || (hasBride && hasGroom));
+            }
+          } catch (e) {
+            // Silently ignore - user might not be logged in or API unavailable
+          }
         }
       } catch (e) {
         // Silently use defaults - API might not be available
@@ -363,21 +399,56 @@ const HomeScreen = ({ navigation }) => {
         {/* RSVP Buttons */}
         <View style={styles.rsvpSection}>
           <Text style={[styles.homeSectionTitle, { color: theme.text }]}>{t('home.confirmAttendance')}</Text>
-          {(weddingTypeState === null || weddingTypeState === 'bride') && (
-            <TouchableOpacity
-              style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
-              onPress={() => navigation.navigate('RSVP', { type: 'bride' })}
-            >
-              <Text style={styles.rsvpButtonText}>👰 {t('home.brideRsvp')}</Text>
-            </TouchableOpacity>
-          )}
-          {(weddingTypeState === null || weddingTypeState === 'groom') && (
-            <TouchableOpacity
-              style={[styles.rsvpButton, { backgroundColor: theme.accent }]}
-              onPress={() => navigation.navigate('RSVP', { type: 'groom' })}
-            >
-              <Text style={styles.rsvpButtonText}>👔 {t('home.groomRsvp')}</Text>
-            </TouchableOpacity>
+          {isBrideGroom ? (
+            <>
+              <TouchableOpacity
+                style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
+                onPress={() => {
+                  console.log('[RSVP] Bride button clicked');
+                  console.log('[RSVP] Navigating to RSVP screen with type: bride');
+                  navigation.navigate('RSVP', { type: 'bride' });
+                }}
+              >
+                <Text style={styles.rsvpButtonText}>👰 {t('home.brideRsvp')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.rsvpButton, { backgroundColor: theme.accent }]}
+                onPress={() => {
+                  console.log('[RSVP] Groom button clicked');
+                  console.log('[RSVP] Navigating to RSVP screen with type: groom');
+                  navigation.navigate('RSVP', { type: 'groom' });
+                }}
+              >
+                <Text style={styles.rsvpButtonText}>👔 {t('home.groomRsvp')}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {(weddingTypeState === null || weddingTypeState === 'bride') && (
+                <TouchableOpacity
+                  style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
+                  onPress={() => {
+                    console.log('[RSVP] Bride button clicked');
+                    console.log('[RSVP] Navigating to RSVP screen with type: bride');
+                    navigation.navigate('RSVP', { type: 'bride' });
+                  }}
+                >
+                  <Text style={styles.rsvpButtonText}>👰 {t('home.brideRsvp')}</Text>
+                </TouchableOpacity>
+              )}
+              {(weddingTypeState === null || weddingTypeState === 'groom') && (
+                <TouchableOpacity
+                  style={[styles.rsvpButton, { backgroundColor: theme.accent }]}
+                  onPress={() => {
+                    console.log('[RSVP] Groom button clicked');
+                    console.log('[RSVP] Navigating to RSVP screen with type: groom');
+                    navigation.navigate('RSVP', { type: 'groom' });
+                  }}
+                >
+                  <Text style={styles.rsvpButtonText}>👔 {t('home.groomRsvp')}</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
 
@@ -510,12 +581,18 @@ const PhotoFeedScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadPhotos();
   }, []);
 
-  const loadPhotos = async () => {
+  const loadPhotos = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const userPhone = await AsyncStorage.getItem('user_phone');
       const response = await realApi.getPhotos(1, 20, userPhone);
@@ -574,11 +651,18 @@ const PhotoFeedScreen = ({ navigation }) => {
 
       setPhotos(combined);
       setLoading(false);
+      setRefreshing(false);
     } catch (error) {
       // Silently handle network errors - API might not be available
+      console.error('[PhotoFeed] Error loading photos:', error);
       setPhotos([]);
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    loadPhotos(true);
   };
 
   const handleLike = async (photoId) => {
@@ -790,6 +874,14 @@ const PhotoFeedScreen = ({ navigation }) => {
         keyExtractor={item => `${item.type || 'photo'}-${item.id}`}
         showsVerticalScrollIndicator={Boolean(false)}
         removeClippedSubviews={Boolean(false)}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
       />
     </SafeAreaView>
   );
@@ -1230,15 +1322,22 @@ const PhotoUploadScreen = ({ navigation }) => {
   };
 
   const handleUpload = async () => {
+    console.log('[PhotoUpload] Upload button clicked');
+    console.log('[PhotoUpload] Selected images count:', selectedImages.length);
+    
     if (selectedImages.length === 0) {
+      console.log('[PhotoUpload] ERROR: No images selected');
       Alert.alert('提示', '请选择至少一张照片');
       return;
     }
 
     setUploading(true);
+    console.log('[PhotoUpload] Starting upload process...');
     try {
       const userPhone = await AsyncStorage.getItem('user_phone');
+      console.log('[PhotoUpload] User phone from storage:', userPhone ? `${userPhone.substring(0, 3)}***` : 'NOT FOUND');
       if (!userPhone) {
+        console.log('[PhotoUpload] ERROR: No phone number found in storage');
         Alert.alert('错误', '请先登录');
         setUploading(false);
         return;
@@ -1252,6 +1351,12 @@ const PhotoUploadScreen = ({ navigation }) => {
       const fileName = fileUri.split('/').pop() || 'photo.jpg';
       const fileType = asset.mimeType || asset.type || 'image/jpeg';
 
+      console.log('[PhotoUpload] Image details:', {
+        fileName,
+        fileType,
+        uri: fileUri.substring(0, 50) + '...'
+      });
+
       // Backend expects field name 'photo' (not 'image')
       formData.append('photo', {
         uri: fileUri,
@@ -1262,11 +1367,18 @@ const PhotoUploadScreen = ({ navigation }) => {
       // Get user name from RSVP or use default
       let userName = 'Guest';
       try {
+        console.log('[PhotoUpload] Fetching user name from RSVP...');
         const verifyResult = await realApi.verifyPhone(userPhone);
+        console.log('[PhotoUpload] verifyPhone response:', {
+          found: verifyResult.found,
+          hasGuest: !!verifyResult.guest,
+          guestName: verifyResult.guest?.name || 'N/A'
+        });
         if (verifyResult.found && verifyResult.guest && verifyResult.guest.name) {
           userName = verifyResult.guest.name;
         }
       } catch (e) {
+        console.log('[PhotoUpload] Could not fetch user name, using default:', e.message);
         // Use default 'Guest' if can't fetch name
       }
       
@@ -1283,27 +1395,39 @@ const PhotoUploadScreen = ({ navigation }) => {
         formData.append('tags', JSON.stringify(selectedTags));
       }
 
-      console.log('[PhotoUpload] Uploading media...', {
+      console.log('[PhotoUpload] FormData prepared:', {
         mode: 'photo',
         hasImage: !!selectedImages[0],
         caption: caption || '(empty)',
         tags: selectedTags.length,
-        userPhone: userPhone ? '***' : 'missing'
+        tagsList: selectedTags,
+        userName,
+        userPhone: userPhone ? `${userPhone.substring(0, 3)}***` : 'missing'
       });
 
+      console.log('[PhotoUpload] Calling uploadPhoto API...');
       const response = await realApi.uploadPhoto(formData);
       
-      console.log('[PhotoUpload] Upload success:', response);
+      console.log('[PhotoUpload] Upload success response:', response);
       
       Alert.alert('成功', '照片已发布！', [
         { text: '确定', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
       console.error('[PhotoUpload] Upload error:', error);
+      console.error('[PhotoUpload] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url,
+        method: error.config?.method
+      });
       const errorMessage = error?.response?.data?.message || error?.message || '上传失败，请重试';
       Alert.alert('错误', errorMessage);
     } finally {
       setUploading(false);
+      console.log('[PhotoUpload] Upload process completed');
     }
   };
 
