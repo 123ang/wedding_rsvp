@@ -81,7 +81,7 @@ const translations = {
     'theme.dreamy.desc': 'Sweet dreamy style',
 
     'tab.home': 'Home',
-    'tab.photos': 'Photos / Videos',
+    'tab.photos': 'Photos',
     'tab.seats': 'Seats',
     'tab.settings': 'Settings',
 
@@ -192,7 +192,7 @@ const translations = {
     'theme.dreamy.desc': 'Gaya manis dan dreamy',
 
     'tab.home': 'Utama',
-    'tab.photos': 'Gambar / Video',
+    'tab.photos': 'Gambar',
     'tab.seats': 'Tempat duduk',
     'tab.settings': 'Tetapan',
 
@@ -288,7 +288,7 @@ const translations = {
     'settings.logout.error': 'ログアウトに失敗しました。もう一度お試しください。',
 
     'tab.home': 'ホーム',
-    'tab.photos': '写真 / ビデオ',
+    'tab.photos': '写真',
     'tab.seats': '席',
     'tab.settings': '設定',
 
@@ -396,7 +396,7 @@ const translations = {
     'settings.logout.error': '登出失败，请重试',
 
     'tab.home': '首页',
-    'tab.photos': '照片 / 视频',
+    'tab.photos': '照片',
     'tab.seats': '座位',
     'tab.settings': '设置',
 

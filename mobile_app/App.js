@@ -25,8 +25,8 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import Constants from 'expo-constants';
 import { themes, defaultTheme } from './src/utils/themes';
-import { Video } from 'expo-av';
 import realApi from './src/services/realApi';
 import { toBoolean } from './src/utils/booleanUtils';
 import ApiTestScreen from './src/screens/ApiTestScreen';
@@ -36,9 +36,15 @@ import { LanguageProvider, useLanguage } from './src/contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
 
-// Helper: download image to device gallery
+// Helper: download image to device gallery using Expo FileSystem + MediaLibrary
 const downloadImageToGallery = async (imageUrl, fallbackName = 'photo') => {
   try {
+    // In Expo Go we can't control AndroidManifest permissions, so avoid calling native APIs
+    if (Constants.appOwnership === 'expo') {
+      Alert.alert('Download', 'To save photos directly, please run a development/production build instead of Expo Go.');
+      return;
+    }
+
     if (!imageUrl) {
       Alert.alert('错误', '没有可下载的图片');
       return;
@@ -60,7 +66,13 @@ const downloadImageToGallery = async (imageUrl, fallbackName = 'photo') => {
     Alert.alert('成功', '照片已保存到相册');
   } catch (error) {
     console.error('[Download] error:', error);
-    Alert.alert('错误', '保存照片失败，请稍后重试');
+    // Graceful message if specific AUDIO permission error occurs
+    const msg = String(error?.message || '');
+    if (msg.includes('AUDIO permission')) {
+      Alert.alert('错误', '当前构建未声明音频存储权限，无法直接保存图片。请使用正式打包的应用再次尝试。');
+    } else {
+      Alert.alert('错误', '保存照片失败，请稍后重试');
+    }
   }
 };
 
@@ -350,7 +362,7 @@ const HomeScreen = ({ navigation }) => {
 
         {/* RSVP Buttons */}
         <View style={styles.rsvpSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.confirmAttendance')}</Text>
+          <Text style={[styles.homeSectionTitle, { color: theme.text }]}>{t('home.confirmAttendance')}</Text>
           {(weddingTypeState === null || weddingTypeState === 'bride') && (
             <TouchableOpacity
               style={[styles.rsvpButton, { backgroundColor: theme.primary }]}
@@ -498,7 +510,6 @@ const PhotoFeedScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [mutedVideoIds, setMutedVideoIds] = useState({});
 
   useEffect(() => {
     loadPhotos();
@@ -555,34 +566,7 @@ const PhotoFeedScreen = ({ navigation }) => {
         return p;
       });
 
-      // Load videos as well
-      let videoItems = [];
-      try {
-        const videosResponse = await realApi.getVideos();
-        const videosData = Array.isArray(videosResponse) ? videosResponse : (videosResponse.videos || []);
-        const baseUrl = realApi?.apiBaseUrl || '';
-
-        videoItems = videosData.map(video => ({
-          id: video.id,
-          type: 'video',
-          userName: video.guest_name || video.title || 'Video',
-          userAvatar: (video.guest_name && video.guest_name[0]) || '🎬',
-          createdAt: video.created_at,
-          videoUrl: video.video_url && video.video_url.startsWith('/')
-            ? `${baseUrl}${video.video_url}`
-            : video.video_url,
-          tags: [],
-          likes: 0,
-          totalComments: 0,
-          likedByMe: false,
-          savedByMe: false,
-          caption: video.description || '',
-        }));
-      } catch (e) {
-        // ignore video load errors
-      }
-
-      const combined = [...photoItems, ...videoItems].sort((a, b) => {
+      const combined = [...photoItems].sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
@@ -656,11 +640,7 @@ const PhotoFeedScreen = ({ navigation }) => {
             style: 'destructive',
             onPress: async () => {
               try {
-                if (item.type === 'video') {
-                  await realApi.deleteVideo(item.id, userPhone);
-                } else {
-                  await realApi.deletePhoto(item.id, userPhone);
-                }
+                await realApi.deletePhoto(item.id, userPhone);
                 setPhotos(prev => prev.filter(p => !(p.type === item.type && p.id === item.id)));
               } catch (error) {
                 const msg =
@@ -705,9 +685,6 @@ const PhotoFeedScreen = ({ navigation }) => {
   };
 
   const renderPhoto = ({ item }) => {
-    const isVideo = item.type === 'video';
-    const isMuted = mutedVideoIds[item.id] !== false; // default true
-
     return (
       <View style={styles.photoPost}>
         {/* Header */}
@@ -724,31 +701,13 @@ const PhotoFeedScreen = ({ navigation }) => {
         </View>
 
         {/* Media */}
+        {console.log('[FEED] imageUrl', item.id, item.imageUrl)}
         <TouchableOpacity
           style={[styles.postImage, { backgroundColor: theme.gradientStart }]}
-          onPress={() => {
-            if (isVideo) {
-              setMutedVideoIds(prev => ({
-                ...prev,
-                [item.id]: !isMuted,
-              }));
-            } else {
-              navigation.navigate('PhotoDetail', { photo: item });
-            }
-          }}
-          activeOpacity={isVideo ? 1 : 0.7}
+          onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
+          activeOpacity={0.7}
         >
-          {isVideo ? (
-            <Video
-              source={{ uri: item.videoUrl }}
-              style={styles.videoPlayer}
-              resizeMode="contain"
-              shouldPlay
-              isLooping
-              isMuted={isMuted}
-              useNativeControls={false}
-            />
-          ) : item.imageUrl ? (
+          {item.imageUrl ? (
             <Image
               source={{ uri: item.imageUrl }}
               style={styles.postImageImage}
@@ -757,65 +716,59 @@ const PhotoFeedScreen = ({ navigation }) => {
           ) : (
             <Text style={styles.postImageEmoji}>No Image</Text>
           )}
-          {!isVideo && (
-            <View style={styles.postImageOverlay}>
-              {item.tags.map((tag, index) => (
-                <View key={index} style={styles.tagBadgeOverlay}>
-                  <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          )}
+          <View style={styles.postImageOverlay}>
+            {item.tags.map((tag, index) => (
+              <View key={index} style={styles.tagBadgeOverlay}>
+                <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
+              </View>
+            ))}
+          </View>
         </TouchableOpacity>
 
-        {/* Actions / likes / caption only for photos */}
-        {!isVideo && (
-          <>
-            <View style={styles.postActions}>
-              <TouchableOpacity onPress={() => handleLike(item.id)}>
-                <Ionicons
-                  name={toBoolean(item.likedByMe) ? 'heart' : 'heart-outline'}
-                  size={28}
-                  color={toBoolean(item.likedByMe) ? '#e91e63' : theme.text}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
-                style={{ marginLeft: 15 }}
-              >
-                <Ionicons name="chatbubble-outline" size={26} color={theme.text} />
-              </TouchableOpacity>
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity onPress={() => handleSave(item.id)}>
-                <Ionicons
-                  name={toBoolean(item.savedByMe) ? 'bookmark' : 'bookmark-outline'}
-                  size={26}
-                  color={toBoolean(item.savedByMe) ? theme.primary : theme.text}
-                />
-              </TouchableOpacity>
-            </View>
+        {/* Actions / likes / caption */}
+        <View style={styles.postActions}>
+          <TouchableOpacity onPress={() => handleLike(item.id)}>
+            <Ionicons
+              name={toBoolean(item.likedByMe) ? 'heart' : 'heart-outline'}
+              size={28}
+              color={toBoolean(item.likedByMe) ? '#e91e63' : theme.text}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
+            style={{ marginLeft: 15 }}
+          >
+            <Ionicons name="chatbubble-outline" size={26} color={theme.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => handleSave(item.id)}>
+            <Ionicons
+              name={toBoolean(item.savedByMe) ? 'bookmark' : 'bookmark-outline'}
+              size={26}
+              color={toBoolean(item.savedByMe) ? theme.primary : theme.text}
+            />
+          </TouchableOpacity>
+        </View>
 
-            {/* Likes & caption */}
-            <Text style={[styles.postLikes, { color: theme.text }]}>{item.likes} 个赞</Text>
-            <View style={styles.postCaption}>
-              <Text style={[styles.postCaptionText, { color: theme.text }]}>
-                <Text style={{ fontWeight: 'bold' }}>{item.userName} </Text>
-                {item.caption}
-              </Text>
-            </View>
+        {/* Likes & caption */}
+        <Text style={[styles.postLikes, { color: theme.text }]}>{item.likes} 个赞</Text>
+        <View style={styles.postCaption}>
+          <Text style={[styles.postCaptionText, { color: theme.text }]}>
+            <Text style={{ fontWeight: 'bold' }}>{item.userName} </Text>
+            {item.caption}
+          </Text>
+        </View>
 
-            {/* Comments link */}
-            {item.totalComments > 0 && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
-                style={styles.postComments}
-              >
-                <Text style={[styles.viewComments, { color: theme.textLight }]}>
-                  查看全部 {item.totalComments} 条评论
-                </Text>
-              </TouchableOpacity>
-            )}
-          </>
+        {/* Comments link */}
+        {item.totalComments > 0 && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('PhotoDetail', { photo: item })}
+            style={styles.postComments}
+          >
+            <Text style={[styles.viewComments, { color: theme.textLight }]}>
+              查看全部 {item.totalComments} 条评论
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -842,19 +795,32 @@ const PhotoFeedScreen = ({ navigation }) => {
   );
 };
 
+// Helper to build full image URL from API fields
+const buildImageUrl = (raw) => {
+  if (!raw) return '';
+  if (raw.startsWith('http')) return raw;
+
+  const base = (realApi?.apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) return raw;
+
+  if (raw.startsWith('/')) return `${base}${raw}`;
+  return `${base}/${raw}`;
+};
+
 // Photo Detail Screen (with comments)
 const PhotoDetailScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
   const [photo, setPhoto] = useState(() => {
-    const p = route.params.photo;
+    const p = route.params.photo || {};
     return {
       ...p,
+      imageUrl: buildImageUrl(p.imageUrl || p.image_url),
       likedByMe: toBoolean(p.likedByMe),
       savedByMe: toBoolean(p.savedByMe),
-      comments: p.comments ? p.comments.map(c => ({
+      comments: (p.comments || []).map(c => ({
         ...c,
         likedByMe: toBoolean(c.likedByMe)
-      })) : []
+      })),
     };
   });
   const [commentText, setCommentText] = useState('');
@@ -862,15 +828,18 @@ const PhotoDetailScreen = ({ route, navigation }) => {
   const loadFullPhoto = async () => {
     try {
       const userPhone = await AsyncStorage.getItem('user_phone');
-      const [photoData, commentsData] = await Promise.all([
+      const [photoResponse, commentsResponse] = await Promise.all([
         realApi.getPhoto(photo.id, userPhone),
         realApi.getComments(photo.id, 1, 100, userPhone),
       ]);
 
-      const commentsArray = Array.isArray(commentsData?.comments)
-        ? commentsData.comments
-        : Array.isArray(commentsData)
+      const photoData = photoResponse.photo || photoResponse || {};
+      const commentsData = commentsResponse.comments || commentsResponse || [];
+
+      const commentsArray = Array.isArray(commentsData)
         ? commentsData
+        : Array.isArray(commentsData.comments)
+        ? commentsData.comments
         : [];
 
       const mappedComments = commentsArray.map(c => ({
@@ -881,27 +850,24 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         likedByMe: toBoolean(c.liked || c.likedByMe),
         createdAt: c.created_at,
       }));
-      // Normalize tags to simple strings
-      const normalizedTags = Array.isArray(photoData.tags)
-        ? photoData.tags.map(t => t.name || t)
-        : [];
 
-      // Ensure we have a full image URL (same logic as feed)
-      let fullImageUrl = photoData.image_url || photoData.imageUrl || '';
-      const baseUrl = realApi?.apiBaseUrl || '';
-      if (fullImageUrl && fullImageUrl.startsWith('/') && baseUrl) {
-        fullImageUrl = `${baseUrl}${fullImageUrl}`;
-      }
-
-      setPhoto(
-        normalizePhoto({
-          ...photoData,
-          imageUrl: prev?.imageUrl || fullImageUrl,
-          createdAt: prev?.createdAt || photoData.created_at,
-          tags: normalizedTags,
+      setPhoto(prev => {
+        const next = {
+          // keep what we already had from the feed (userName, avatar, etc.)
+          ...prev,
+          // normalize/refresh image URL from latest data
+          imageUrl: buildImageUrl(photoData.image_url || photoData.imageUrl || prev.imageUrl),
+          // overlay with fresh counts/basic fields from backend if present
+          likes: photoData.likes_count != null ? photoData.likes_count : (photoData.likes ?? prev.likes),
+          totalComments:
+            photoData.comments_count != null
+              ? photoData.comments_count
+              : (photoData.totalComments ?? prev.totalComments),
+          createdAt: prev?.createdAt || photoData.created_at || prev?.createdAt,
           comments: mappedComments,
-        })
-      );
+        };
+        return normalizePhoto(next);
+      });
     } catch (error) {
       // ignore load errors; keep existing state
     }
@@ -999,6 +965,71 @@ const PhotoDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  // Delete photo from detail screen
+  const handleDeleteDetail = async () => {
+    try {
+      const userPhone = await AsyncStorage.getItem('user_phone');
+      if (!userPhone) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+
+      Alert.alert(
+        '删除',
+        '确定要删除这条照片吗？',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '删除',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await realApi.deletePhoto(photo.id, userPhone);
+                Alert.alert('成功', '照片已删除');
+                navigation.goBack();
+              } catch (error) {
+                const msg =
+                  error?.response?.data?.message ||
+                  (error?.response?.status === 403
+                    ? '只能删除自己上传的内容'
+                    : '删除失败，请稍后重试');
+                Alert.alert('错误', msg);
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (e) {
+      Alert.alert('错误', '删除失败，请稍后重试');
+    }
+  };
+
+  // 3-dot menu in detail view (download + delete)
+  const handleMoreActionsDetail = () => {
+    const buttons = [];
+
+    if (photo.imageUrl) {
+      buttons.push({
+        text: '下载照片',
+        onPress: () => downloadImageToGallery(photo.imageUrl, `photo-${photo.id}`),
+      });
+    }
+
+    buttons.push({
+      text: '删除',
+      style: 'destructive',
+      onPress: handleDeleteDetail,
+    });
+
+    buttons.push({
+      text: '取消',
+      style: 'cancel',
+    });
+
+    Alert.alert('更多操作', '', buttons, { cancelable: true });
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
       <KeyboardAvoidingView
@@ -1007,6 +1038,18 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
       <ScrollView>
+        {console.log('[DETAIL] imageUrl', photo.id, photo.imageUrl)}
+        {/* Local back button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={handleMoreActionsDetail} style={{ padding: 4 }}>
+            <Ionicons name="ellipsis-vertical" size={20} color={theme.textLight} />
+          </TouchableOpacity>
+        </View>
+
         {/* Post Header */}
         <View style={styles.postHeader}>
           <Text style={styles.postAvatar}>{photo.userAvatar}</Text>
@@ -1017,18 +1060,20 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         </View>
 
         {/* Image */}
-        <View style={[styles.postImage, { backgroundColor: theme.gradientStart }]}>
+        <TouchableOpacity
+          style={[styles.postImage, { backgroundColor: theme.gradientStart }]}
+          onPress={handleDownload}
+          activeOpacity={0.9}
+        >
           {photo.imageUrl ? (
             <>
-              <TouchableOpacity onPress={handleDownload} activeOpacity={0.9}>
-                <Image
-                  source={{ uri: photo.imageUrl }}
-                  style={styles.postImageImage}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
+              <Image
+                source={{ uri: photo.imageUrl }}
+                style={styles.postImageImage}
+                resizeMode="cover"
+              />
               <View style={styles.postImageOverlay}>
-                {photo.tags.map((tag, index) => (
+                {(photo.tags || []).map((tag, index) => (
                   <View key={index} style={styles.tagBadgeOverlay}>
                     <Text style={[styles.tagBadgeText, { color: theme.primary }]}>{tag}</Text>
                   </View>
@@ -1038,7 +1083,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
           ) : (
             <Text style={styles.postImageEmoji}>No Image</Text>
           )}
-        </View>
+        </TouchableOpacity>
 
         {/* Actions */}
         <View style={styles.postActions}>
@@ -1131,7 +1176,6 @@ const PhotoUploadScreen = ({ navigation }) => {
   const [tags, setTags] = useState([]);
   const [customTag, setCustomTag] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [isVideo, setIsVideo] = useState(false);
 
   useEffect(() => {
     loadTags();
@@ -1151,7 +1195,7 @@ const PhotoUploadScreen = ({ navigation }) => {
   const pickImages = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: isVideo ? ['videos'] : ['images'],
+        mediaTypes: ['images'],
         allowsMultipleSelection: true,
         quality: 0.8,
         allowsEditing: false,
@@ -1187,7 +1231,7 @@ const PhotoUploadScreen = ({ navigation }) => {
 
   const handleUpload = async () => {
     if (selectedImages.length === 0) {
-      Alert.alert('提示', isVideo ? '请选择一个视频' : '请选择至少一张照片');
+      Alert.alert('提示', '请选择至少一张照片');
       return;
     }
 
@@ -1200,29 +1244,20 @@ const PhotoUploadScreen = ({ navigation }) => {
         return;
       }
 
-      // Create FormData for multipart upload
+      // Create FormData for multipart upload (photos only)
       const formData = new FormData();
-      
-      // Get the asset URI - handle both image and video
+
       const asset = selectedImages[0];
       const fileUri = asset.uri;
-      const fileName = fileUri.split('/').pop() || (isVideo ? 'video.mp4' : 'photo.jpg');
-      const fileType = asset.mimeType || asset.type || (isVideo ? 'video/mp4' : 'image/jpeg');
-      
-      if (isVideo) {
-        formData.append('video', {
-          uri: fileUri,
-          type: fileType,
-          name: fileName,
-        });
-      } else {
-        // Backend expects field name 'photo' (not 'image')
-        formData.append('photo', {
-          uri: fileUri,
-          type: fileType,
-          name: fileName,
-        });
-      }
+      const fileName = fileUri.split('/').pop() || 'photo.jpg';
+      const fileType = asset.mimeType || asset.type || 'image/jpeg';
+
+      // Backend expects field name 'photo' (not 'image')
+      formData.append('photo', {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      });
       
       // Get user name from RSVP or use default
       let userName = 'Guest';
@@ -1241,32 +1276,26 @@ const PhotoUploadScreen = ({ navigation }) => {
       
       if (caption && caption.trim()) {
         formData.append('caption', caption.trim());
-        if (isVideo) {
-          formData.append('title', caption.trim());
-          formData.append('description', caption.trim());
-        }
       }
       
-      if (!isVideo && selectedTags.length > 0) {
+      if (selectedTags.length > 0) {
         // Send tags as JSON string (backend will parse it)
         formData.append('tags', JSON.stringify(selectedTags));
       }
 
       console.log('[PhotoUpload] Uploading media...', {
-        mode: isVideo ? 'video' : 'photo',
+        mode: 'photo',
         hasImage: !!selectedImages[0],
         caption: caption || '(empty)',
         tags: selectedTags.length,
         userPhone: userPhone ? '***' : 'missing'
       });
 
-      const response = isVideo
-        ? await realApi.uploadVideo(formData)
-        : await realApi.uploadPhoto(formData);
+      const response = await realApi.uploadPhoto(formData);
       
       console.log('[PhotoUpload] Upload success:', response);
       
-      Alert.alert('成功', isVideo ? '视频已发布！' : '照片已发布！', [
+      Alert.alert('成功', '照片已发布！', [
         { text: '确定', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
@@ -1281,43 +1310,6 @@ const PhotoUploadScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView>
-        {/* Mode Toggle */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            marginBottom: 10,
-            marginTop: 10,
-            marginHorizontal: 20,
-            padding: 4,
-            borderWidth: 2,
-            borderColor: theme.secondary,
-            borderRadius: 20,
-            backgroundColor: '#fff',
-          }}
-        >
-          <TouchableOpacity
-            style={[
-              styles.radioButton,
-              !isVideo && { backgroundColor: theme.primary, borderColor: theme.primary },
-              { marginRight: 10, paddingHorizontal: 20 },
-            ]}
-            onPress={() => setIsVideo(false)}
-          >
-            <Text style={[styles.radioText, !isVideo && { color: '#fff' }]}>{t('upload.photoTab')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.radioButton,
-              isVideo && { backgroundColor: theme.primary, borderColor: theme.primary },
-              { paddingHorizontal: 20 },
-            ]}
-            onPress={() => setIsVideo(true)}
-          >
-            <Text style={[styles.radioText, isVideo && { color: '#fff' }]}>{t('upload.videoTab')}</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Upload Area */}
         <TouchableOpacity
           style={[styles.uploadArea, { borderColor: theme.secondary }]}
@@ -1325,17 +1317,15 @@ const PhotoUploadScreen = ({ navigation }) => {
         >
           <Ionicons name="cloud-upload-outline" size={60} color={theme.primary} />
           <Text style={[styles.uploadText, { color: theme.textLight }]}>
-            {isVideo ? t('upload.pickVideoHint') : t('upload.pickPhotoHint')}
+            {t('upload.pickPhotoHint')}
           </Text>
-          {!isVideo && (
-            <Text style={[styles.uploadHint, { color: theme.textLight }]}>{t('upload.pickHint')}</Text>
-          )}
+          <Text style={[styles.uploadHint, { color: theme.textLight }]}>{t('upload.pickHint')}</Text>
         </TouchableOpacity>
 
         {/* Selected Images */}
         {selectedImages.length > 0 && (
           <View style={styles.selectedImagesContainer}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            <Text style={[styles.uploadSectionTitle, { color: theme.text }]}>
               {t('upload.selectedPhotos', { count: selectedImages.length })}
             </Text>
             <View style={styles.imageGrid}>
@@ -1350,7 +1340,7 @@ const PhotoUploadScreen = ({ navigation }) => {
 
         {/* Tags */}
         <View style={styles.tagsSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          <Text style={[styles.uploadSectionTitle, { color: theme.text }]}>
             <Ionicons name="pricetags" size={18} color={theme.primary} /> {t('upload.tagsTitle')}
           </Text>
           <View style={styles.tagsGrid}>
@@ -1409,7 +1399,7 @@ const PhotoUploadScreen = ({ navigation }) => {
 
         {/* Caption */}
         <View style={styles.captionSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('upload.captionTitle')}</Text>
+          <Text style={[styles.uploadSectionTitle, { color: theme.text }]}>{t('upload.captionTitle')}</Text>
           <TextInput
             style={[styles.captionInput, { borderColor: theme.secondary, color: theme.text }]}
             placeholder={t('upload.captionPlaceholder')}
@@ -1555,54 +1545,6 @@ const SeatMapScreen = () => {
           </>
         )}
       </View>
-    </SafeAreaView>
-  );
-};
-
-// Videos Screen
-const VideosScreen = () => {
-  const { theme } = useTheme();
-  const [videos, setVideos] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await realApi.getVideos();
-        setVideos(Array.isArray(data) ? data : []);
-      } catch (e) {
-        // Silently use empty array
-        setVideos([]);
-      }
-    };
-    load();
-  }, []);
-
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView>
-        <View style={[styles.videosHeader, { backgroundColor: theme.gradientStart }]}>
-          <Text style={[styles.videosTitle, { color: theme.text }]}>精彩视频</Text>
-          <Text style={[styles.videosSubtitle, { color: theme.textLight }]}>记录美好时刻</Text>
-        </View>
-        <View style={styles.videoList}>
-          {videos.map(video => (
-            <View key={video.id} style={styles.videoItem}>
-              <View style={[styles.videoThumbnail, { backgroundColor: theme.gradientStart }]}>
-                <Text style={styles.videoThumbnailEmoji}>{video.thumbnailUrl}</Text>
-                <View style={[styles.playButton, { backgroundColor: theme.primary }]}>
-                  <Ionicons name="play" size={24} color="#fff" />
-                </View>
-              </View>
-              <View style={styles.videoInfo}>
-                <Text style={[styles.videoTitle, { color: theme.text }]}>{video.title}</Text>
-                <Text style={[styles.videoDuration, { color: theme.textLight }]}>
-                  <Ionicons name="time-outline" size={14} /> {video.duration}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -2044,10 +1986,6 @@ export default function App() {
               component={PhotoUploadScreen}
             />
             <Stack.Screen
-              name="Videos"
-              component={VideosScreen}
-            />
-            <Stack.Screen
               name="Timeline"
               component={TimelineScreen}
             />
@@ -2169,7 +2107,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
   },
-  sectionTitle: {
+  homeSectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
@@ -2455,7 +2393,7 @@ const styles = StyleSheet.create({
   selectedImagesContainer: {
     padding: 20
   },
-  sectionTitle: {
+  uploadSectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 15
@@ -2591,52 +2529,6 @@ const styles = StyleSheet.create({
   legendMySeat: {},
   legendText: {
     fontSize: 14
-  },
-  // Videos
-  videosHeader: {
-    padding: 30,
-    alignItems: 'center'
-  },
-  videosTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 5
-  },
-  videosSubtitle: {
-    fontSize: 14
-  },
-  videoList: {
-    padding: 20
-  },
-  videoItem: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginBottom: 15,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  videoThumbnail: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative'
-  },
-  videoThumbnailEmoji: {
-    fontSize: 60
-  },
-  playButton: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    opacity: 0.9
   },
   videoInfo: {
     padding: 15

@@ -289,26 +289,6 @@ const realApi = {
     return response.data;
   },
 
-  // Videos
-  getVideos: async () => {
-    const response = await apiClient.get('/videos');
-    return response.data;
-  },
-
-  getVideo: async (videoId) => {
-    const response = await apiClient.get(`/videos/${videoId}`);
-    return response.data;
-  },
-
-  uploadVideo: async (formData) => {
-    const response = await apiClient.post('/videos/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
-
   // Timeline
   getTimeline: async () => {
     const response = await apiClient.get('/timeline');

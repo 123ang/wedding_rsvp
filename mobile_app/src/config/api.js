@@ -7,7 +7,7 @@ const ENV = {
     // LOCAL DEVELOPMENT - Change this to your computer's IP when testing on Android
     // Find your IP: Windows: ipconfig | findstr IPv4, Mac/Linux: ifconfig
     // Note: Use your computer's IP, NOT localhost (localhost won't work from Android)
-    apiUrl: 'http://192.168.100.3:3001/api', // Your local IP for development (port 3001)
+    apiUrl: 'https://jsang-psong-wedding.com/api', // Your local IP for development (port 3001)
   },
   staging: {
     apiUrl: 'https://jsang-psong-wedding.com/api',
