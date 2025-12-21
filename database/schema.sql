@@ -22,7 +22,7 @@ INSERT INTO admin_users (email, password) VALUES
 CREATE TABLE IF NOT EXISTS rsvps (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NULL,
     phone VARCHAR(50),
     organization VARCHAR(255) NULL,
     relationship VARCHAR(100) NULL,

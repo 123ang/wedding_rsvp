@@ -28,11 +28,14 @@ router.post('/bride-rsvp', async (req, res) => {
       });
     }
 
+    // Normalize email (trim whitespace, convert empty string to null)
+    const emailValue = email && email.trim() ? email.trim() : null;
+
     // Insert new RSVP
     const [result] = await pool.execute(
       `INSERT INTO rsvps (name, email, phone, attending, number_of_guests, wedding_type, relationship, remark) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, email || null, phone, attending, number_of_guests, 'bride', relationship || null, remark || null]
+      [name, emailValue, phone, attending, number_of_guests, 'bride', relationship || null, remark || null]
     );
 
     res.status(201).json({
@@ -41,9 +44,28 @@ router.post('/bride-rsvp', async (req, res) => {
     });
   } catch (error) {
     console.error('Bride RSVP error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
+    
+    // Return more specific error for database connection issues
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'PROTOCOL_CONNECTION_LOST') {
+      console.error('Database connection error detected');
+      return res.status(503).json({
+        message: "Database connection failed. Please check server configuration.",
+        success: false,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
     res.status(503).json({
       message: "Unable to submit RSVP.",
-      success: false
+      success: false,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -74,11 +96,14 @@ router.post('/groom-rsvp', async (req, res) => {
       });
     }
 
+    // Normalize email (trim whitespace, convert empty string to null)
+    const emailValue = email && email.trim() ? email.trim() : null;
+
     // Insert new RSVP
     const [result] = await pool.execute(
       `INSERT INTO rsvps (name, email, phone, attending, number_of_guests, wedding_type, organization, relationship, remark) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, email || null, phone, attending, number_of_guests, 'groom', organization || null, relationship || null, remark || null]
+      [name, emailValue, phone, attending, number_of_guests, 'groom', organization || null, relationship || null, remark || null]
     );
 
     res.status(201).json({
@@ -87,9 +112,28 @@ router.post('/groom-rsvp', async (req, res) => {
     });
   } catch (error) {
     console.error('Groom RSVP error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
+    
+    // Return more specific error for database connection issues
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'PROTOCOL_CONNECTION_LOST') {
+      console.error('Database connection error detected');
+      return res.status(503).json({
+        message: "Database connection failed. Please check server configuration.",
+        success: false,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
     res.status(503).json({
       message: "Unable to submit RSVP.",
-      success: false
+      success: false,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

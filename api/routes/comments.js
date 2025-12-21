@@ -15,7 +15,18 @@ router.get('/photo/:photoId', async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
 
-    // Use string interpolation for LIMIT/OFFSET to avoid prepared statement issues
+    // Validate and sanitize inputs (photoId should be an integer)
+    const photoIdInt = parseInt(photoId);
+    if (isNaN(photoIdInt) || photoIdInt <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid photo ID' });
+    }
+
+    // Ensure limit and offset are safe integers (some MySQL versions don't support placeholders for LIMIT/OFFSET)
+    const safeLimit = Math.max(1, Math.min(limit, 100)); // Cap at 100 for safety
+    const safeOffset = Math.max(0, offset);
+
+    // Use pool.query with properly validated integers for LIMIT/OFFSET
+    // This avoids the "Incorrect arguments to mysqld_stmt_execute" error
     const [comments] = await pool.query(
       `SELECT 
         c.id,
@@ -30,8 +41,8 @@ router.get('/photo/:photoId', async (req, res) => {
       WHERE c.photo_id = ?
       GROUP BY c.id
       ORDER BY c.created_at ASC
-      LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`,
-      [photoId]
+      LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [photoIdInt]
     );
 
     // Check if user liked each comment
