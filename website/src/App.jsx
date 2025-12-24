@@ -7,6 +7,7 @@ import GalleryPage from './pages/GalleryPage';
 import VideosPage from './pages/VideosPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboard from './pages/AdminDashboard';
+import PhotographerUploadPage from './pages/PhotographerUploadPage';
 import BackgroundMusic from './components/BackgroundMusic';
 import ErrorBoundary from './components/ErrorBoundary';
 import LanguageRouteWrapper from './components/LanguageRouteWrapper';
@@ -30,6 +31,11 @@ function App() {
             <Route path="/admin/dashboard" element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/photographer/upload" element={
+              <ProtectedRoute>
+                <PhotographerUploadPage />
               </ProtectedRoute>
             } />
             <Route path="*" element={

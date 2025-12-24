@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getAllRSVPs, updatePaymentAmount, updateSeatTable, updateRelationship, updateRemark, getRelationships, checkAdminAuth, adminLogout } from '../services/api';
+import { useNavigate, Link } from 'react-router-dom';
+import { getAllRSVPs, updatePaymentAmount, updateSeatTable, updateRelationship, updateRemark, getRelationships, checkAdminAuth, adminLogout, getAllUsers, updateUserRole, createUser, deleteUser } from '../services/api';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -13,12 +13,17 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('bride'); // 'bride' or 'groom'
   const [searchTerm, setSearchTerm] = useState('');
   const [attendingFilter, setAttendingFilter] = useState('all'); // 'all', 'attending', 'not-attending'
+  const [selectedRelationships, setSelectedRelationships] = useState([]); // Array of selected relationship strings
+  const [showRelationshipFilter, setShowRelationshipFilter] = useState(false); // Show/hide relationship filter dropdown
   const [editingPayment, setEditingPayment] = useState({ id: null, type: null, value: '' });
   const [editingSeat, setEditingSeat] = useState({ id: null, type: null, value: '' });
   const [editingRelationship, setEditingRelationship] = useState({ id: null, type: null, value: '' });
   const [editingRemark, setEditingRemark] = useState({ id: null, type: null, value: '' });
   const [availableRelationships, setAvailableRelationships] = useState([]);
   const [showRelationshipDropdown, setShowRelationshipDropdown] = useState({ id: null, show: false });
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [editingUserRole, setEditingUserRole] = useState({ id: null, role: '' });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +33,9 @@ const AdminDashboard = () => {
     checkAuth();
     fetchRSVPs();
     fetchRelationships();
+    if (checkAdminAuth().role === 'admin') {
+      fetchUsers();
+    }
 
     return () => {
       document.body.classList.remove('no-petals');
@@ -40,15 +48,19 @@ const AdminDashboard = () => {
       if (showRelationshipDropdown.show && !event.target.closest('.payment-edit-cell')) {
         setShowRelationshipDropdown({ id: null, show: false });
       }
+      // Close relationship filter dropdown when clicking outside
+      if (showRelationshipFilter && !event.target.closest('.relationship-filter-container')) {
+        setShowRelationshipFilter(false);
+      }
     };
 
-    if (showRelationshipDropdown.show) {
+    if (showRelationshipDropdown.show || showRelationshipFilter) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [showRelationshipDropdown.show]);
+  }, [showRelationshipDropdown.show, showRelationshipFilter]);
 
   const fetchRelationships = async () => {
     try {
@@ -56,6 +68,66 @@ const AdminDashboard = () => {
       setAvailableRelationships(relationships);
     } catch (error) {
       console.error('Failed to fetch relationships:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const data = await getAllUsers();
+      if (data.success) {
+        setUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
+  const handleUserRoleUpdate = async () => {
+    const { id, role } = editingUserRole;
+    try {
+      await updateUserRole(id, role);
+      await fetchUsers();
+      setEditingUserRole({ id: null, role: '' });
+      alert('User role updated successfully');
+    } catch (err) {
+      console.error('Update user role error:', err);
+      alert(err.message || 'An error occurred while updating user role');
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      await createUser(newUser.email, newUser.password, newUser.role);
+      await fetchUsers();
+      setNewUser({ email: '', password: '', role: 'photographer' });
+      setShowCreateUser(false);
+      alert('User created successfully');
+    } catch (err) {
+      console.error('Create user error:', err);
+      alert(err.message || 'An error occurred while creating user');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (id, email) => {
+    if (!window.confirm(`Are you sure you want to delete user "${email}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteUser(id);
+      await fetchUsers();
+      alert('User deleted successfully');
+    } catch (err) {
+      console.error('Delete user error:', err);
+      alert(err.message || 'An error occurred while deleting user');
     }
   };
 
@@ -100,31 +172,62 @@ const AdminDashboard = () => {
   };
 
   const handleExportToExcel = () => {
-    // Create CSV content
+    // Helper function to escape CSV values
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      // If value contains comma, quote, or newline, wrap in quotes and escape quotes
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Create CSV content with UTF-8 BOM for Excel compatibility
     const headers = ['Name', 'Email', 'Phone', 'Wedding Type', 'Attending', 'Number of Guests', 'Table', 'Payment Amount', 'Relationship', 'Remark', 'Created At'];
-    const csvContent = [
+    const csvRows = [
       headers.join(','),
       ...filteredRsvps.map(rsvp => [
-        `"${rsvp.name}"`,
-        `"${rsvp.email}"`,
-        `"${rsvp.phone || '-'}"`,
-        rsvp.type,
+        escapeCSV(rsvp.name),
+        escapeCSV(rsvp.email || ''),
+        escapeCSV(rsvp.phone || '-'),
+        escapeCSV(rsvp.type),
         rsvp.attending ? 'Yes' : 'No',
         rsvp.number_of_guests,
-        `"${rsvp.seat_table || ''}"`,
+        escapeCSV(rsvp.seat_table || ''),
         rsvp.payment_amount.toFixed(2),
-        `"${rsvp.relationship || ''}"`,
-        `"${rsvp.remark || ''}"`,
-        new Date(rsvp.created_at).toLocaleString()
+        escapeCSV(rsvp.relationship || ''),
+        escapeCSV(rsvp.remark || ''),
+        new Date(rsvp.created_at).toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })
       ].join(','))
-    ].join('\n');
+    ];
+    
+    const csvContent = '\uFEFF' + csvRows.join('\n'); // Add UTF-8 BOM for Excel
 
     // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
+    
+    // Create filename with filter information
+    let filename = `rsvp-list-${activeTab}`;
+    if (selectedRelationships.length > 0) {
+      filename += `-relationships(${selectedRelationships.length})`;
+    }
+    if (attendingFilter !== 'all') {
+      filename += `-${attendingFilter}`;
+    }
+    filename += `-${new Date().toISOString().split('T')[0]}.csv`;
+    
     link.setAttribute('href', url);
-    link.setAttribute('download', `rsvp-list-${activeTab}-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -257,6 +360,27 @@ const AdminDashboard = () => {
     setEditingRemark({ id: null, type: null, value: '' });
   };
 
+  // Relationship filter handlers
+  const handleRelationshipFilterToggle = (relationship) => {
+    setSelectedRelationships(prev => {
+      if (prev.includes(relationship)) {
+        // Remove from selection
+        return prev.filter(r => r !== relationship);
+      } else {
+        // Add to selection
+        return [...prev, relationship];
+      }
+    });
+  };
+
+  const handleClearRelationshipFilter = () => {
+    setSelectedRelationships([]);
+  };
+
+  const handleSelectAllRelationships = () => {
+    setSelectedRelationships([...availableRelationships]);
+  };
+
   // Filter and search logic
   const filteredRsvps = rsvps.filter(rsvp => {
     // Filter by tab (bride or groom)
@@ -265,6 +389,16 @@ const AdminDashboard = () => {
     // Filter by attending status
     if (attendingFilter === 'attending' && !rsvp.attending) return false;
     if (attendingFilter === 'not-attending' && rsvp.attending) return false;
+    
+    // Filter by relationship (if any relationships are selected)
+    if (selectedRelationships.length > 0) {
+      const rsvpRelationship = (rsvp.relationship || '').trim();
+      // Only show RSVPs whose relationship is in the selected list
+      // RSVPs without relationships are excluded when filtering
+      if (!selectedRelationships.includes(rsvpRelationship)) {
+        return false;
+      }
+    }
     
     // Filter by search term
     if (searchTerm &&
@@ -323,6 +457,22 @@ const AdminDashboard = () => {
           >
             📊 Export
           </button>
+          {checkAdminAuth().role === 'admin' && (
+            <button 
+              onClick={() => setShowUserManagement(!showUserManagement)}
+              className="user-management-btn"
+              title="Manage Users"
+            >
+              👥 Users
+            </button>
+          )}
+          <Link
+            to="/photographer/upload"
+            className="photographer-link-btn"
+            title="Photographer Portal"
+          >
+            📸 Photographer
+          </Link>
           <button onClick={handleLogout} className="admin-logout-btn">
             Logout
           </button>
@@ -330,6 +480,146 @@ const AdminDashboard = () => {
       </div>
 
       {error && <div className="admin-error-message">{error}</div>}
+
+      {/* User Management Section (Admin Only) */}
+      {showUserManagement && checkAdminAuth().role === 'admin' && (
+        <div className="user-management-section">
+          <div className="user-management-header">
+            <h2>User Management</h2>
+            <button
+              onClick={() => setShowCreateUser(!showCreateUser)}
+              className="create-user-btn"
+            >
+              {showCreateUser ? '✕ Cancel' : '+ Add User'}
+            </button>
+          </div>
+
+          {/* Create User Form */}
+          {showCreateUser && (
+            <div className="create-user-form">
+              <h3>Create New User</h3>
+              <div className="form-group">
+                <label>Email:</label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  placeholder="user@example.com"
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Password:</label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  placeholder="Enter password"
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Role:</label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                  className="form-select"
+                >
+                  <option value="photographer">📸 Photographer</option>
+                  <option value="admin">👑 Admin</option>
+                </select>
+              </div>
+              <div className="form-actions">
+                <button
+                  onClick={handleCreateUser}
+                  disabled={creatingUser}
+                  className="create-user-submit-btn"
+                >
+                  {creatingUser ? 'Creating...' : 'Create User'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateUser(false);
+                    setNewUser({ email: '', password: '', role: 'photographer' });
+                  }}
+                  className="cancel-create-btn"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="user-management-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                      No users found
+                    </td>
+                  </tr>
+                ) : (
+                  users.map(user => (
+                    <tr key={user.id}>
+                      <td>{user.email}</td>
+                      <td>
+                        {editingUserRole.id === user.id ? (
+                          <select
+                            value={editingUserRole.role}
+                            onChange={(e) => setEditingUserRole({ ...editingUserRole, role: e.target.value })}
+                            className="role-select"
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="photographer">Photographer</option>
+                          </select>
+                        ) : (
+                          <span className={`role-badge ${user.role === 'admin' ? 'admin' : 'photographer'}`}>
+                            {user.role === 'admin' ? '👑 Admin' : '📸 Photographer'}
+                          </span>
+                        )}
+                      </td>
+                      <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                      <td>
+                        {editingUserRole.id === user.id ? (
+                          <div className="role-edit-buttons">
+                            <button onClick={handleUserRoleUpdate} className="save-role-btn">✓</button>
+                            <button onClick={() => setEditingUserRole({ id: null, role: '' })} className="cancel-role-btn">✕</button>
+                          </div>
+                        ) : (
+                          <div className="user-action-buttons">
+                            <button
+                              onClick={() => setEditingUserRole({ id: user.id, role: user.role })}
+                              className="edit-role-btn"
+                            >
+                              ✏️ Change Role
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.email)}
+                              className="delete-user-btn"
+                              title="Delete User"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="admin-tabs">
@@ -401,6 +691,58 @@ const AdminDashboard = () => {
           >
             Not Attending
           </button>
+          <div className="relationship-filter-container">
+            <button 
+              className={`filter-btn relationship-filter-btn ${selectedRelationships.length > 0 ? 'active' : ''}`}
+              onClick={() => setShowRelationshipFilter(!showRelationshipFilter)}
+              title={`Filter by Relationship${selectedRelationships.length > 0 ? ` (${selectedRelationships.length} selected)` : ''}`}
+            >
+              Relationship {selectedRelationships.length > 0 && `(${selectedRelationships.length})`} {showRelationshipFilter ? '▼' : '▶'}
+            </button>
+            {showRelationshipFilter && (
+              <div className="relationship-filter-dropdown">
+                <div className="relationship-filter-header">
+                  <button 
+                    className="relationship-filter-action-btn"
+                    onClick={handleSelectAllRelationships}
+                  >
+                    Select All
+                  </button>
+                  <button 
+                    className="relationship-filter-action-btn"
+                    onClick={handleClearRelationshipFilter}
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="relationship-filter-list">
+                  {availableRelationships.length === 0 ? (
+                    <div className="relationship-filter-empty">No relationships found</div>
+                  ) : (
+                    availableRelationships.map((relationship, idx) => {
+                      const isSelected = selectedRelationships.includes(relationship);
+                      return (
+                        <label 
+                          key={idx} 
+                          className={`relationship-filter-item ${isSelected ? 'selected' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleRelationshipFilterToggle(relationship)}
+                          />
+                          <span className="relationship-filter-checkmark">
+                            {isSelected && '✓'}
+                          </span>
+                          <span>{relationship}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -56,7 +56,7 @@ const GalleryPageSimple = () => {
                 alt={photo.alt}
                 loading="lazy"
                 onError={(e) => {
-                  e.target.src = `https://via.placeholder.com/400x300/667eea/ffffff?text=Photo+${index + 1}`;
+                  e.target.src = `https://via.placeholder.com/400x300/f472b6/ffffff?text=Photo+${index + 1}`;
                 }}
               />
               <div className="photo-overlay">

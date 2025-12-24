@@ -1,6 +1,6 @@
 .gallery-page {
   min-height: 100vh;
-  background: linear-gradient(to bottom, #f8f9ff, #ffffff);
+  background: linear-gradient(to bottom, #fdf2f8, #ffffff);
   padding: 1rem 0;
 }
 
@@ -18,7 +18,7 @@
 
 .gallery-title {
   font-size: 2rem;
-  color: #667eea;
+  color: #f472b6;
   font-family: 'Georgia', serif;
   margin-top: 2rem;
   margin-bottom: 0.75rem;
@@ -31,6 +31,54 @@
   color: #666;
   font-style: italic;
   line-height: 1.4;
+}
+
+/* Gallery Tabs */
+.gallery-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  padding: 0 1rem;
+}
+
+.gallery-tab {
+  padding: 12px 24px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.gallery-tab:hover:not(.active) {
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+  color: #333;
+}
+
+.gallery-tab.active {
+  background: white;
+  border-color: #E96E8F;
+  color: #E96E8F;
+  box-shadow: 0 2px 8px rgba(233, 110, 143, 0.3);
+  font-weight: 700;
+}
+
+.gallery-loading,
+.gallery-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.gallery-loading .loading-spinner {
+  margin: 0 auto 1rem;
 }
 
 .photo-grid {
@@ -85,7 +133,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid #f3f3f3;
-  border-top: 3px solid #667eea;
+  border-top: 3px solid #f472b6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -114,7 +162,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(102, 126, 234, 0.7);
+  background: rgba(244, 114, 182, 0.7);
   display: flex;
   flex-direction: column;
   align-items: center;

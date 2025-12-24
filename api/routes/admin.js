@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, requireAdmin } = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
 
 // Admin Login
 router.post('/login', async (req, res) => {
@@ -15,9 +16,9 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Get user from database
+    // Get user from database (including role)
     const [users] = await pool.execute(
-      'SELECT id, email, password FROM admin_users WHERE email = ? LIMIT 1',
+      'SELECT id, email, password, role FROM admin_users WHERE email = ? LIMIT 1',
       [email]
     );
 
@@ -41,7 +42,8 @@ router.post('/login', async (req, res) => {
         message: "Login successful.",
         success: true,
         email: user.email,
-        id: user.id
+        id: user.id,
+        role: user.role || 'admin' // Default to admin if role is null
       });
     } else {
       res.status(401).json({
@@ -263,6 +265,178 @@ router.get('/relationships', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       message: "Failed to fetch relationships.",
       success: false
+    });
+  }
+});
+
+// Get All Users (Admin Only) - for managing roles
+router.get('/users', authenticateAdmin, async (req, res) => {
+  try {
+    const [users] = await pool.execute(
+      'SELECT id, email, role, created_at FROM admin_users ORDER BY created_at DESC'
+    );
+
+    res.json({
+      success: true,
+      users: users.map(user => ({
+        id: user.id,
+        email: user.email,
+        role: user.role || 'admin',
+        created_at: user.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      message: "Failed to fetch users.",
+      success: false
+    });
+  }
+});
+
+// Update User Role (Admin Only)
+router.post('/update-role', authenticateAdmin, async (req, res) => {
+  try {
+    const { id, role } = req.body;
+
+    if (!id || !role) {
+      return res.status(400).json({
+        message: "ID and role are required.",
+        success: false
+      });
+    }
+
+    if (role !== 'admin' && role !== 'photographer') {
+      return res.status(400).json({
+        message: "Role must be 'admin' or 'photographer'.",
+        success: false
+      });
+    }
+
+    await pool.execute(
+      'UPDATE admin_users SET role = ? WHERE id = ?',
+      [role, id]
+    );
+
+    res.json({
+      message: "User role updated successfully.",
+      success: true
+    });
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({
+      message: "Unable to update user role.",
+      success: false
+    });
+  }
+});
+
+// Create New User (Admin Only)
+router.post('/create-user', authenticateAdmin, requireAdmin, async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required.",
+        success: false
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        message: "Invalid email format.",
+        success: false
+      });
+    }
+
+    // Validate role
+    const validRole = role === 'photographer' ? 'photographer' : 'admin';
+
+    // Check if user already exists
+    const [existingUsers] = await pool.execute(
+      'SELECT id FROM admin_users WHERE email = ?',
+      [email]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({
+        message: "User with this email already exists.",
+        success: false
+      });
+    }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Insert new user
+    const [result] = await pool.execute(
+      'INSERT INTO admin_users (email, password, role) VALUES (?, ?, ?)',
+      [email, hashedPassword, validRole]
+    );
+
+    res.json({
+      message: "User created successfully.",
+      success: true,
+      user: {
+        id: result.insertId,
+        email: email,
+        role: validRole
+      }
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({
+      message: "Failed to create user.",
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete User (Admin Only)
+router.delete('/users/:id', authenticateAdmin, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.admin.id;
+
+    // Prevent deleting yourself
+    if (parseInt(id) === parseInt(currentUserId)) {
+      return res.status(400).json({
+        message: "You cannot delete your own account.",
+        success: false
+      });
+    }
+
+    // Check if user exists
+    const [users] = await pool.execute(
+      'SELECT id, email FROM admin_users WHERE id = ?',
+      [id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        message: "User not found.",
+        success: false
+      });
+    }
+
+    // Delete user
+    await pool.execute('DELETE FROM admin_users WHERE id = ?', [id]);
+
+    res.json({
+      message: "User deleted successfully.",
+      success: true
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({
+      message: "Failed to delete user.",
+      success: false,
+      error: error.message
     });
   }
 });

@@ -13,10 +13,14 @@ const AdminLoginPage = () => {
   // Check if admin is already logged in (backup check, GuestRoute also handles this)
   useEffect(() => {
     const checkAuth = () => {
-      const { success } = checkAdminAuth();
+      const { success, role } = checkAdminAuth();
       if (success) {
-        // Already logged in, redirect to dashboard
-        navigate('/admin/dashboard', { replace: true });
+        // Already logged in, redirect based on role
+        if (role === 'photographer') {
+          navigate('/photographer/upload', { replace: true });
+        } else {
+          navigate('/admin/dashboard', { replace: true });
+        }
       }
     };
     
@@ -44,8 +48,12 @@ const AdminLoginPage = () => {
       const data = await adminLogin(email, password);
       
       if (data.success) {
-        // Login successful, redirect to dashboard (replace so back button doesn't go to login)
-        navigate('/admin/dashboard', { replace: true });
+        // Login successful, redirect based on role
+        if (data.role === 'photographer') {
+          navigate('/photographer/upload', { replace: true });
+        } else {
+          navigate('/admin/dashboard', { replace: true });
+        }
       } else {
         setError(data.message || 'Login failed');
       }

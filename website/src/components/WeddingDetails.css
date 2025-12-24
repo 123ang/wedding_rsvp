@@ -11,7 +11,7 @@
 
 .details-title {
   font-size: 1.75rem;
-  color: #667eea;
+  color: #f472b6;
   font-family: 'Georgia', serif;
   text-align: center;
   margin-bottom: 1.5rem;
@@ -117,7 +117,7 @@
 }
 
 .contact-phone-link:hover {
-  color: #667eea;
+  color: #f472b6;
   text-decoration: underline;
 }
 

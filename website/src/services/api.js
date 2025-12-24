@@ -111,11 +111,13 @@ export const adminLogin = async (email, password) => {
       // Store admin session in localStorage
       localStorage.setItem('admin_email', response.data.email);
       localStorage.setItem('admin_id', response.data.id);
+      localStorage.setItem('admin_role', response.data.role || 'admin');
       
       return {
         message: response.data.message || "Login successful.",
         success: true,
-        email: response.data.email
+        email: response.data.email,
+        role: response.data.role || 'admin'
       };
     } else {
       throw {
@@ -342,10 +344,56 @@ export const adminLogout = () => {
 // Check admin authentication
 export const checkAdminAuth = () => {
   const adminEmail = localStorage.getItem('admin_email');
+  const adminRole = localStorage.getItem('admin_role') || 'admin';
   return {
     success: !!adminEmail,
-    email: adminEmail
+    email: adminEmail,
+    role: adminRole
   };
+};
+
+// Get all users (Admin only)
+export const getAllUsers = async () => {
+  try {
+    const response = await apiClient.get('/admin/users');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Update user role (Admin only)
+export const updateUserRole = async (id, role) => {
+  try {
+    const response = await apiClient.post('/admin/update-role', { id, role });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Create new user (Admin only)
+export const createUser = async (email, password, role) => {
+  try {
+    const response = await apiClient.post('/admin/create-user', {
+      email,
+      password,
+      role: role || 'photographer'
+    });
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+// Delete user (Admin only)
+export const deleteUser = async (id) => {
+  try {
+    const response = await apiClient.delete(`/admin/users/${id}`);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
 };
 
 export default apiClient;
