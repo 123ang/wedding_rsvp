@@ -10,6 +10,7 @@ const AdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
+  const [adminRole, setAdminRole] = useState(null);
   const [activeTab, setActiveTab] = useState('bride'); // 'bride' or 'groom'
   const [searchTerm, setSearchTerm] = useState('');
   const [attendingFilter, setAttendingFilter] = useState('all'); // 'all', 'attending', 'not-attending'
@@ -36,7 +37,8 @@ const AdminDashboard = () => {
     checkAuth();
     fetchRSVPs();
     fetchRelationships();
-    if (checkAdminAuth().role === 'admin') {
+    const auth = checkAdminAuth();
+    if (auth.role === 'admin') {
       fetchUsers();
     }
 
@@ -140,6 +142,8 @@ const AdminDashboard = () => {
       navigate('/admin/login');
     } else {
       setAdminEmail(authResult.email);
+      setAdminRole(authResult.role);
+      console.log('Admin Dashboard - Auth Check:', { email: authResult.email, role: authResult.role });
     }
   };
 
@@ -460,7 +464,24 @@ const AdminDashboard = () => {
           >
             📊 Export
           </button>
-          {checkAdminAuth().role === 'admin' && (
+          {(() => {
+            // Check both state and localStorage for role
+            const auth = checkAdminAuth();
+            const role = adminRole || auth.role || 'admin'; // Default to admin if not set
+            const isAdmin = role === 'admin';
+            
+            // Debug logging
+            if (!isAdmin) {
+              console.log('User Management Button - Not Admin:', { 
+                adminRole, 
+                authRole: auth.role, 
+                finalRole: role,
+                email: auth.email 
+              });
+            }
+            
+            return isAdmin;
+          })() && (
             <button 
               onClick={() => setShowUserManagement(!showUserManagement)}
               className="user-management-btn"
@@ -485,7 +506,7 @@ const AdminDashboard = () => {
       {error && <div className="admin-error-message">{error}</div>}
 
       {/* User Management Section (Admin Only) */}
-      {showUserManagement && checkAdminAuth().role === 'admin' && (
+      {showUserManagement && (adminRole === 'admin' || checkAdminAuth().role === 'admin') && (
         <div className="user-management-section">
           <div className="user-management-header">
             <h2>User Management</h2>

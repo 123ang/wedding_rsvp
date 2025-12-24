@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
+import JSZip from 'jszip';
 import { API_BASE_URL } from '../config/api';
 import './GalleryPage.css';
 
@@ -18,6 +19,7 @@ const GalleryPage = () => {
   const [allPhotos, setAllPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pre-wedding');
+  const [downloadingZip, setDownloadingZip] = useState(false);
   const imageRefs = useRef([]);
 
   // Category mappings
@@ -95,6 +97,107 @@ const GalleryPage = () => {
         photoTags.some(tag => tag.includes(keyword.toLowerCase()))
       );
     });
+  };
+
+  // Download single photo
+  const handleDownloadPhoto = async (e, photo, index) => {
+    e.stopPropagation(); // Prevent opening lightbox
+    
+    try {
+      const response = await fetch(photo.src);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Extract filename from URL or use index
+      const urlParts = photo.src.split('/');
+      const filename = urlParts[urlParts.length - 1] || `photo-${index + 1}.jpg`;
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading photo:', error);
+      alert('Failed to download photo. Please try again.');
+    }
+  };
+
+  // Download all photos in current category as a zip file
+  const handleDownloadAll = async () => {
+    const filteredPhotos = getFilteredPhotos();
+    
+    if (filteredPhotos.length === 0) {
+      alert('No photos to download');
+      return;
+    }
+
+    if (!window.confirm(`Download all ${filteredPhotos.length} photos as a zip file? This may take a while.`)) {
+      return;
+    }
+
+    setDownloadingZip(true);
+    
+    try {
+      const zip = new JSZip();
+      const categoryName = activeTab.replace('-', '_');
+      const zipFileName = `${categoryName}_photos_${new Date().toISOString().split('T')[0]}.zip`;
+      
+      // Fetch all photos and add to zip
+      for (let i = 0; i < filteredPhotos.length; i++) {
+        const photo = filteredPhotos[i];
+        try {
+          const response = await fetch(photo.src);
+          if (!response.ok) {
+            console.warn(`Failed to fetch photo ${i + 1}: ${photo.src}`);
+            continue;
+          }
+          
+          const blob = await response.blob();
+          
+          // Extract filename from URL or use index
+          const urlParts = photo.src.split('/');
+          let filename = urlParts[urlParts.length - 1] || `photo-${i + 1}.jpg`;
+          
+          // Ensure filename has extension
+          if (!filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+            const contentType = blob.type;
+            const extension = contentType.includes('png') ? 'png' : 
+                            contentType.includes('gif') ? 'gif' : 
+                            contentType.includes('webp') ? 'webp' : 'jpg';
+            filename = `photo-${i + 1}.${extension}`;
+          }
+          
+          // Add to zip with a clean filename
+          zip.file(filename, blob);
+        } catch (error) {
+          console.error(`Error processing photo ${i + 1}:`, error);
+          // Continue with other photos even if one fails
+        }
+      }
+      
+      // Generate zip file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Download the zip file
+      const url = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = zipFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert(`Successfully downloaded ${filteredPhotos.length} photos as ${zipFileName}!`);
+    } catch (error) {
+      console.error('Error creating zip file:', error);
+      alert('Failed to create zip file. Please try again.');
+    } finally {
+      setDownloadingZip(false);
+    }
   };
 
   const filteredPhotos = getFilteredPhotos();
@@ -180,31 +283,43 @@ const GalleryPage = () => {
         </div>
 
         {/* Category Tabs */}
-        <div className="gallery-tabs">
-          <button
-            className={`gallery-tab ${activeTab === 'pre-wedding' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pre-wedding')}
-          >
-            Pre-Wedding
-          </button>
-          <button
-            className={`gallery-tab ${activeTab === 'brides-dinner' ? 'active' : ''}`}
-            onClick={() => setActiveTab('brides-dinner')}
-          >
-            Bride's Dinner
-          </button>
-          <button
-            className={`gallery-tab ${activeTab === 'morning-wedding' ? 'active' : ''}`}
-            onClick={() => setActiveTab('morning-wedding')}
-          >
-            Morning Wedding
-          </button>
-          <button
-            className={`gallery-tab ${activeTab === 'grooms-dinner' ? 'active' : ''}`}
-            onClick={() => setActiveTab('grooms-dinner')}
-          >
-            Groom's Dinner
-          </button>
+        <div className="gallery-tabs-container">
+          <div className="gallery-tabs">
+            <button
+              className={`gallery-tab ${activeTab === 'pre-wedding' ? 'active' : ''}`}
+              onClick={() => setActiveTab('pre-wedding')}
+            >
+              Pre-Wedding
+            </button>
+            <button
+              className={`gallery-tab ${activeTab === 'brides-dinner' ? 'active' : ''}`}
+              onClick={() => setActiveTab('brides-dinner')}
+            >
+              Bride's Dinner
+            </button>
+            <button
+              className={`gallery-tab ${activeTab === 'morning-wedding' ? 'active' : ''}`}
+              onClick={() => setActiveTab('morning-wedding')}
+            >
+              Morning Wedding
+            </button>
+            <button
+              className={`gallery-tab ${activeTab === 'grooms-dinner' ? 'active' : ''}`}
+              onClick={() => setActiveTab('grooms-dinner')}
+            >
+              Groom's Dinner
+            </button>
+          </div>
+          {!loading && (
+            <button
+              onClick={handleDownloadAll}
+              className={`download-all-btn ${filteredPhotos.length === 0 || downloadingZip ? 'disabled' : ''}`}
+              title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : 'Download All Photos as ZIP'}
+              disabled={filteredPhotos.length === 0 || downloadingZip}
+            >
+              {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All (${filteredPhotos.length})`}
+            </button>
+          )}
         </div>
 
         {/* Loading State */}
@@ -249,6 +364,13 @@ const GalleryPage = () => {
                   <span className="view-icon">🔍</span>
                   <span className="view-text">{t('gallery.viewPhoto')}</span>
                 </div>
+                <button
+                  className="photo-download-btn"
+                  onClick={(e) => handleDownloadPhoto(e, photo, index)}
+                  title="Download Photo"
+                >
+                  ⬇️
+                </button>
               </div>
             ))}
           </div>

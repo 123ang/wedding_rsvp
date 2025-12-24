@@ -344,11 +344,22 @@ export const adminLogout = () => {
 // Check admin authentication
 export const checkAdminAuth = () => {
   const adminEmail = localStorage.getItem('admin_email');
-  const adminRole = localStorage.getItem('admin_role') || 'admin';
+  const adminId = localStorage.getItem('admin_id');
+  let adminRole = localStorage.getItem('admin_role');
+  
+  // If role is not in localStorage, default to 'admin' for backward compatibility
+  // But also check if we can fetch it from the API if needed
+  if (!adminRole && adminEmail && adminId) {
+    console.warn('Admin role not found in localStorage, defaulting to admin');
+    adminRole = 'admin';
+    // Optionally, we could fetch the role from the API here
+  }
+  
   return {
     success: !!adminEmail,
     email: adminEmail,
-    role: adminRole
+    id: adminId,
+    role: adminRole || 'admin' // Default to 'admin' if not set
   };
 };
 

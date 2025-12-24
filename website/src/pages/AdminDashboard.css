@@ -803,6 +803,22 @@
   border-radius: 5px;
   font-size: 14px;
   font-family: inherit;
+  background: white;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.form-input::placeholder {
+  color: #999;
+  opacity: 1;
+}
+
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px white inset;
+  -webkit-text-fill-color: #333;
+  border: 2px solid #e0e0e0;
 }
 
 .form-input:focus,
