@@ -24,6 +24,9 @@ const AdminDashboard = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [users, setUsers] = useState([]);
   const [editingUserRole, setEditingUserRole] = useState({ id: null, role: '' });
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUser, setNewUser] = useState({ email: '', password: '', role: 'photographer' });
+  const [creatingUser, setCreatingUser] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
