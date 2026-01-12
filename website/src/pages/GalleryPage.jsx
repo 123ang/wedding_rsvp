@@ -1,10 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import JSZip from 'jszip';
 import { API_BASE_URL } from '../config/api';
 import './GalleryPage.css';
+
+const PHOTOS_PER_PAGE = 30;
+const CACHE_NAME = 'gallery-images-cache-v1';
+const SLIDESHOW_INTERVAL = 2500; // 2.5 seconds
 
 const GalleryPage = () => {
   // Disable sakura petals while on gallery
@@ -16,11 +20,19 @@ const GalleryPage = () => {
   const [open, setOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadedImages, setLoadedImages] = useState(new Set());
-  const [allPhotos, setAllPhotos] = useState([]);
+  const [displayedPhotos, setDisplayedPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pre-wedding');
   const [downloadingZip, setDownloadingZip] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPhotos, setTotalPhotos] = useState(0);
+  const [allPhotosForSlideshow, setAllPhotosForSlideshow] = useState([]);
+  const [slideshowActive, setSlideshowActive] = useState(false);
+  const [slideshowIndex, setSlideshowIndex] = useState(0);
+  const slideshowIntervalRef = useRef(null);
   const imageRefs = useRef([]);
+  const imageCache = useRef(new Map());
 
   // Category mappings
   const categories = {
@@ -30,73 +42,183 @@ const GalleryPage = () => {
     'grooms-dinner': ['groom\'s dinner', 'grooms dinner', 'groom dinner', 'groom-dinner']
   };
 
-  // Fetch photos from photographer_photo table
+  // Initialize Cache API
   useEffect(() => {
-    const fetchPhotos = async () => {
+    const initCache = async () => {
       try {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/photos/photographer?limit=1000`);
-        const data = await response.json();
-        
-        if (data.success && data.photos) {
-          // Transform API photos to gallery format
-          const transformedPhotos = data.photos.map(photo => ({
-            src: photo.image_url.startsWith('http') 
-              ? photo.image_url 
-              : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`,
-            alt: photo.caption || `Photo by ${photo.user_name}`,
-            id: photo.id,
-            caption: photo.caption,
-            tags: photo.tags || [],
-            user_name: photo.user_name,
-            category: photo.category // Include category for reference
-          }));
-          setAllPhotos(transformedPhotos);
+        if ('caches' in window) {
+          const cache = await caches.open(CACHE_NAME);
+          console.log('Image cache initialized');
         }
       } catch (error) {
-        console.error('Error fetching photos:', error);
-        // Fallback to empty array on error
-        setAllPhotos([]);
-      } finally {
-        setLoading(false);
+        console.error('Error initializing cache:', error);
       }
     };
-
-    fetchPhotos();
+    initCache();
   }, []);
 
-  // Filter photos by active tab category
-  const getFilteredPhotos = () => {
-    if (activeTab === 'all') {
-      return allPhotos;
+  // Cache image function
+  const cacheImage = useCallback(async (imageUrl) => {
+    try {
+      if ('caches' in window && !imageCache.current.has(imageUrl)) {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match(imageUrl);
+        
+        if (!cachedResponse) {
+          const response = await fetch(imageUrl);
+          if (response.ok) {
+            await cache.put(imageUrl, response.clone());
+            imageCache.current.set(imageUrl, true);
+          }
+        } else {
+          imageCache.current.set(imageUrl, true);
+        }
+      }
+    } catch (error) {
+      console.error('Error caching image:', error);
     }
+  }, []);
 
-    // Map active tab to category value in photographer_photo table
+  // Fetch cached image
+  const getCachedImage = useCallback(async (imageUrl) => {
+    try {
+      if ('caches' in window) {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match(imageUrl);
+        if (cachedResponse) {
+          return URL.createObjectURL(await cachedResponse.blob());
+        }
+      }
+      return imageUrl;
+    } catch (error) {
+      console.error('Error getting cached image:', error);
+      return imageUrl;
+    }
+  }, []);
+
+  // Fetch photos from photographer_photo table with pagination
+  const fetchPhotos = useCallback(async (page = 1, category = null) => {
+    try {
+      setLoading(true);
+
+      const limit = PHOTOS_PER_PAGE;
+      let url = `${API_BASE_URL}/photos/photographer?limit=${limit}&page=${page}`;
+      if (category) {
+        url += `&category=${category}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success && data.photos) {
+        // Transform API photos to gallery format
+        const transformedPhotos = data.photos.map(photo => ({
+          src: photo.image_url.startsWith('http') 
+            ? photo.image_url 
+            : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`,
+          alt: photo.caption || `Photo by ${photo.user_name}`,
+          id: photo.id,
+          caption: photo.caption,
+          tags: photo.tags || [],
+          user_name: photo.user_name,
+          category: photo.category
+        }));
+
+        // Replace photos (page-by-page pagination)
+        setDisplayedPhotos(transformedPhotos);
+
+        // Update pagination info
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages || 1);
+          setTotalPhotos(data.pagination.total || 0);
+        }
+
+        // Cache images in background
+        transformedPhotos.forEach(photo => {
+          cacheImage(photo.src);
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching photos:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [cacheImage]);
+
+  // Fetch all photos for slideshow (only when slideshow is requested)
+  const fetchAllPhotosForSlideshow = useCallback(async (category = null) => {
+    try {
+      let url = `${API_BASE_URL}/photos/photographer?limit=1000`;
+      if (category) {
+        url += `&category=${category}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success && data.photos) {
+        const transformedPhotos = data.photos.map(photo => ({
+          src: photo.image_url.startsWith('http') 
+            ? photo.image_url 
+            : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`,
+          alt: photo.caption || `Photo by ${photo.user_name}`,
+          id: photo.id,
+          caption: photo.caption,
+          tags: photo.tags || [],
+          user_name: photo.user_name,
+          category: photo.category
+        }));
+        setAllPhotosForSlideshow(transformedPhotos);
+        return transformedPhotos;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching all photos for slideshow:', error);
+      return [];
+    }
+  }, []);
+
+  // Initial fetch and fetch on tab/page change
+  useEffect(() => {
     const categoryMap = {
       'pre-wedding': 'pre-wedding',
       'brides-dinner': 'brides-dinner',
       'morning-wedding': 'morning-wedding',
       'grooms-dinner': 'grooms-dinner'
     };
+    const category = categoryMap[activeTab] || null;
+    fetchPhotos(currentPage, category);
+  }, [activeTab, currentPage, fetchPhotos]);
 
-    const targetCategory = categoryMap[activeTab];
-    
-    // Filter by category directly if available, otherwise fall back to tag matching
-    return allPhotos.filter(photo => {
-      if (photo.category) {
-        return photo.category === targetCategory;
-      }
-      
-      // Fallback to tag matching for backward compatibility
-      const categoryKeywords = categories[activeTab] || [];
-      const photoTags = (photo.tags || []).map(tag => 
-        typeof tag === 'string' ? tag.toLowerCase() : tag.name?.toLowerCase()
-      );
-      
-      return categoryKeywords.some(keyword => 
-        photoTags.some(tag => tag.includes(keyword.toLowerCase()))
-      );
-    });
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllPhotosForSlideshow([]);
+  }, [activeTab]);
+
+  // Page navigation functions
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  // Get filtered photos (now just return displayedPhotos since API filters)
+  const getFilteredPhotos = () => {
+    return displayedPhotos;
   };
 
   // Download single photo
@@ -269,6 +391,100 @@ const GalleryPage = () => {
     return () => observer.disconnect();
   }, [filteredPhotos]);
 
+  // Slideshow functions
+  const startSlideshow = async () => {
+    // Fetch all photos for slideshow if not already loaded
+    let slideshowPhotos = allPhotosForSlideshow;
+    
+    if (slideshowPhotos.length === 0) {
+      const categoryMap = {
+        'pre-wedding': 'pre-wedding',
+        'brides-dinner': 'brides-dinner',
+        'morning-wedding': 'morning-wedding',
+        'grooms-dinner': 'grooms-dinner'
+      };
+      const category = categoryMap[activeTab] || null;
+      slideshowPhotos = await fetchAllPhotosForSlideshow(category);
+    }
+
+    if (slideshowPhotos.length === 0) return;
+
+    setSlideshowActive(true);
+    setSlideshowIndex(0);
+    setCurrentIndex(0);
+    setOpen(true);
+
+    // Request fullscreen
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element.requestFullscreen().catch(err => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
+    }
+
+    // Start auto-advance
+    slideshowIntervalRef.current = setInterval(() => {
+      setSlideshowIndex(prev => {
+        const nextIndex = (prev + 1) % slideshowPhotos.length;
+        setCurrentIndex(nextIndex);
+        return nextIndex;
+      });
+    }, SLIDESHOW_INTERVAL);
+  };
+
+  const stopSlideshow = () => {
+    setSlideshowActive(false);
+    if (slideshowIntervalRef.current) {
+      clearInterval(slideshowIntervalRef.current);
+      slideshowIntervalRef.current = null;
+    }
+
+    // Exit fullscreen
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => {
+        console.error('Error attempting to exit fullscreen:', err);
+      });
+    }
+  };
+
+  // Handle fullscreen change
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && slideshowActive) {
+        stopSlideshow();
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [slideshowActive]);
+
+  // Cleanup slideshow on unmount
+  useEffect(() => {
+    return () => {
+      if (slideshowIntervalRef.current) {
+        clearInterval(slideshowIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Stop slideshow when lightbox closes
+  useEffect(() => {
+    if (!open && slideshowActive) {
+      setSlideshowActive(false);
+      if (slideshowIntervalRef.current) {
+        clearInterval(slideshowIntervalRef.current);
+        slideshowIntervalRef.current = null;
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  }, [open, slideshowActive]);
+
   const handleImageClick = (index) => {
     setCurrentIndex(index);
     setOpen(true);
@@ -311,14 +527,24 @@ const GalleryPage = () => {
             </button>
           </div>
           {!loading && (
-            <button
-              onClick={handleDownloadAll}
-              className={`download-all-btn ${filteredPhotos.length === 0 || downloadingZip ? 'disabled' : ''}`}
-              title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : 'Download All Photos as ZIP'}
-              disabled={filteredPhotos.length === 0 || downloadingZip}
-            >
-              {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All (${filteredPhotos.length})`}
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                onClick={startSlideshow}
+                className="slideshow-btn"
+                title="Start Fullscreen Slideshow"
+                disabled={filteredPhotos.length === 0}
+              >
+                ▶️ Slideshow
+              </button>
+              <button
+                onClick={handleDownloadAll}
+                className={`download-all-btn ${filteredPhotos.length === 0 || downloadingZip ? 'disabled' : ''}`}
+                title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : 'Download All Photos as ZIP'}
+                disabled={filteredPhotos.length === 0 || downloadingZip}
+              >
+                {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All (${filteredPhotos.length})`}
+              </button>
+            </div>
           )}
         </div>
 
@@ -376,12 +602,74 @@ const GalleryPage = () => {
           </div>
         )}
 
+        {/* Pagination Controls */}
+        {!loading && filteredPhotos.length > 0 && totalPages > 1 && (
+          <div className="pagination-container">
+            <button
+              onClick={goToPrevPage}
+              className="pagination-btn"
+              disabled={currentPage === 1}
+            >
+              ← Previous
+            </button>
+            
+            <div className="pagination-info">
+              <span className="pagination-text">
+                Page {currentPage} of {totalPages} ({totalPhotos} photos)
+              </span>
+              {totalPages <= 10 && (
+                <div className="pagination-numbers">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`pagination-number ${currentPage === pageNum ? 'active' : ''}`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={goToNextPage}
+              className="pagination-btn"
+              disabled={currentPage === totalPages}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
         <Lightbox
           open={open}
-          close={() => setOpen(false)}
-          slides={filteredPhotos}
+          close={() => {
+            setOpen(false);
+            if (slideshowActive) {
+              stopSlideshow();
+            }
+          }}
+          slides={slideshowActive && allPhotosForSlideshow.length > 0 ? allPhotosForSlideshow : filteredPhotos}
           index={currentIndex}
+          on={{
+            view: ({ index }) => {
+              setCurrentIndex(index);
+              if (slideshowActive) {
+                setSlideshowIndex(index);
+              }
+            }
+          }}
         />
+        
+        {/* Slideshow Controls Overlay */}
+        {slideshowActive && open && (
+          <div className="slideshow-controls">
+            <button onClick={stopSlideshow} className="slideshow-stop-btn">
+              ⏹ Stop Slideshow
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

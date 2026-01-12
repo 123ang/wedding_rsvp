@@ -8,6 +8,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const AdmZip = require('adm-zip');
 const pool = require('../config/database');
 const { authenticateAdminOrPhotographer } = require('../middleware/auth');
 
@@ -42,6 +43,40 @@ const upload = multer({
       return cb(null, true);
     } else {
       cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
+
+// Configure multer for ZIP file uploads
+const zipStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/temp');
+    try {
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'zip-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadZip = multer({
+  storage: zipStorage,
+  limits: {
+    fileSize: 1024 * 1024 * 1024 * 5, // 5GB limit for ZIP files
+  },
+  fileFilter: (req, file, cb) => {
+    const isZip = file.mimetype === 'application/zip' || 
+                  file.mimetype === 'application/x-zip-compressed' ||
+                  path.extname(file.originalname).toLowerCase() === '.zip';
+    if (isZip) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only ZIP files are allowed!'));
     }
   }
 });
@@ -373,6 +408,146 @@ router.post('/upload', authenticateAdminOrPhotographer, upload.single('photo'), 
         sqlState: error.sqlState,
         sqlMessage: error.sqlMessage
       } : undefined
+    });
+  }
+});
+
+// Upload ZIP file and extract images (allows both admin and photographer)
+router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zipfile'), async (req, res) => {
+  let zipFilePath = null;
+  
+  try {
+    const { category } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No ZIP file provided' });
+    }
+
+    zipFilePath = req.file.path;
+
+    // Validate category is provided
+    if (!category) {
+      // Clean up uploaded ZIP file
+      await fs.unlink(zipFilePath).catch(() => {});
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner'];
+    if (!validCategories.includes(category)) {
+      // Clean up uploaded ZIP file
+      await fs.unlink(zipFilePath).catch(() => {});
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid category. Must be one of: pre-wedding, brides-dinner, morning-wedding, grooms-dinner' 
+      });
+    }
+
+    console.log('[ZIP Upload] Starting processing:', zipFilePath);
+
+    // Extract ZIP file
+    const zip = new AdmZip(zipFilePath);
+    const zipEntries = zip.getEntries();
+    
+    console.log('[ZIP Upload] ZIP file contains', zipEntries.length, 'entries');
+
+    // Filter for image files only
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const imageEntries = zipEntries.filter(entry => {
+      if (entry.isDirectory) return false;
+      const ext = path.extname(entry.entryName).toLowerCase();
+      return imageExtensions.includes(ext);
+    });
+
+    console.log('[ZIP Upload] Found', imageEntries.length, 'image files');
+
+    if (imageEntries.length === 0) {
+      // Clean up
+      await fs.unlink(zipFilePath).catch(() => {});
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No image files found in ZIP archive. Supported formats: JPG, PNG, GIF, WebP' 
+      });
+    }
+
+    const results = {
+      total: imageEntries.length,
+      successful: 0,
+      failed: 0,
+      errors: []
+    };
+
+    const photosDir = path.join(__dirname, '../../uploads/photos');
+    await fs.mkdir(photosDir, { recursive: true });
+
+    // Process each image from ZIP (using buffer directly, no need to extract to disk first)
+    for (let i = 0; i < imageEntries.length; i++) {
+      const entry = imageEntries[i];
+      
+      try {
+        // Get file buffer directly from ZIP entry
+        const fileBuffer = zip.readFile(entry);
+        
+        if (!fileBuffer) {
+          throw new Error('Failed to read file from ZIP');
+        }
+        
+        // Generate unique filename
+        const uniqueSuffix = Date.now() + '-' + i + '-' + Math.round(Math.random() * 1E9);
+        const originalExt = path.extname(entry.entryName);
+        const newFilename = 'photo-' + uniqueSuffix + originalExt;
+        const destPath = path.join(photosDir, newFilename);
+
+        // Write to photos directory
+        await fs.writeFile(destPath, fileBuffer);
+
+        // Generate image URL
+        const imageUrl = `/uploads/photos/${newFilename}`;
+
+        // Insert into photographer_photo table
+        await pool.execute(
+          'INSERT INTO photographer_photo (image_url, category, photographer_email) VALUES (?, ?, ?)',
+          [imageUrl, category, req.admin.email]
+        );
+
+        results.successful++;
+        console.log(`[ZIP Upload] Successfully processed image ${i + 1}/${imageEntries.length}: ${entry.entryName}`);
+      } catch (err) {
+        results.failed++;
+        results.errors.push({
+          filename: entry.entryName,
+          error: err.message
+        });
+        console.error(`[ZIP Upload] Error processing ${entry.entryName}:`, err.message);
+      }
+    }
+
+    // Clean up ZIP file
+    await fs.unlink(zipFilePath).catch(() => {});
+
+    console.log('[ZIP Upload] Completed:', results);
+
+    res.status(201).json({
+      success: true,
+      message: `Processed ${results.successful} of ${results.total} images successfully`,
+      results: {
+        total: results.total,
+        successful: results.successful,
+        failed: results.failed,
+        errors: results.errors.length > 0 ? results.errors : undefined
+      }
+    });
+  } catch (error) {
+    console.error('[ZIP Upload] Error:', error);
+    
+    // Clean up on error
+    if (zipFilePath) {
+      await fs.unlink(zipFilePath).catch(() => {});
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process ZIP file', 
+      error: error.message
     });
   }
 });
