@@ -21,7 +21,7 @@ From your local machine (Windows PowerShell or Command Prompt):
 scp -r website/dist/* user@your-vps-ip:/var/www/jsang-psong-wedding.com/
 
 # Or if you're already in the website directory:
-scp -r dist/* user@your-vps-ip:/var/www/jsang-psong-wedding.com/
+scp -r dist/* /var/www/jsang-psong-wedding.com/
 ```
 
 Replace:
