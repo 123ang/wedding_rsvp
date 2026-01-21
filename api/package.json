@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "upload-zip": "node scripts/upload-zip.js",
+    "process-zip-folder": "node scripts/process-zip-folder.js"
   },
   "keywords": [
     "wedding",

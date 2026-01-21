@@ -558,10 +558,10 @@ const GalleryPage = () => {
               <button
                 onClick={handleDownloadAll}
                 className={`download-all-btn ${filteredPhotos.length === 0 || downloadingZip ? 'disabled' : ''}`}
-                title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : 'Download All Photos as ZIP'}
+                title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : `Download All ${totalPhotos} Photos as ZIP`}
                 disabled={filteredPhotos.length === 0 || downloadingZip}
               >
-                {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All Photos in Category`}
+                {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All (${totalPhotos} Photos)`}
               </button>
             </div>
           )}
