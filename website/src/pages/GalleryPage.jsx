@@ -249,27 +249,46 @@ const GalleryPage = () => {
 
   // Download all photos in current category as a zip file
   const handleDownloadAll = async () => {
-    const filteredPhotos = getFilteredPhotos();
+    const currentPhotos = getFilteredPhotos();
     
-    if (filteredPhotos.length === 0) {
+    if (currentPhotos.length === 0) {
       alert('No photos to download');
-      return;
-    }
-
-    if (!window.confirm(`Download all ${filteredPhotos.length} photos as a zip file? This may take a while.`)) {
       return;
     }
 
     setDownloadingZip(true);
     
     try {
+      // Fetch ALL photos in the category (not just current page)
+      const categoryMap = {
+        'pre-wedding': 'pre-wedding',
+        'brides-dinner': 'brides-dinner',
+        'morning-wedding': 'morning-wedding',
+        'grooms-dinner': 'grooms-dinner'
+      };
+      const category = categoryMap[activeTab] || null;
+      
+      // Fetch all photos for this category
+      const allCategoryPhotos = await fetchAllPhotosForSlideshow(category);
+      
+      if (allCategoryPhotos.length === 0) {
+        alert('No photos found to download');
+        setDownloadingZip(false);
+        return;
+      }
+
+      if (!window.confirm(`Download all ${allCategoryPhotos.length} photos in ${activeTab} category as a zip file? This may take a while.`)) {
+        setDownloadingZip(false);
+        return;
+      }
+
       const zip = new JSZip();
       const categoryName = activeTab.replace('-', '_');
       const zipFileName = `${categoryName}_photos_${new Date().toISOString().split('T')[0]}.zip`;
       
       // Fetch all photos and add to zip
-      for (let i = 0; i < filteredPhotos.length; i++) {
-        const photo = filteredPhotos[i];
+      for (let i = 0; i < allCategoryPhotos.length; i++) {
+        const photo = allCategoryPhotos[i];
         try {
           const response = await fetch(photo.src);
           if (!response.ok) {
@@ -313,7 +332,7 @@ const GalleryPage = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      alert(`Successfully downloaded ${filteredPhotos.length} photos as ${zipFileName}!`);
+      alert(`Successfully downloaded ${allCategoryPhotos.length} photos as ${zipFileName}!`);
     } catch (error) {
       console.error('Error creating zip file:', error);
       alert('Failed to create zip file. Please try again.');
@@ -542,7 +561,7 @@ const GalleryPage = () => {
                 title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : 'Download All Photos as ZIP'}
                 disabled={filteredPhotos.length === 0 || downloadingZip}
               >
-                {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All (${filteredPhotos.length})`}
+                {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All Photos in Category`}
               </button>
             </div>
           )}

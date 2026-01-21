@@ -443,12 +443,24 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
     }
 
     console.log('[ZIP Upload] Starting processing:', zipFilePath);
+    console.log('[ZIP Upload] File size:', req.file.size, 'bytes');
 
-    // Extract ZIP file
-    const zip = new AdmZip(zipFilePath);
-    const zipEntries = zip.getEntries();
-    
-    console.log('[ZIP Upload] ZIP file contains', zipEntries.length, 'entries');
+    // Extract ZIP file with error handling
+    let zip;
+    let zipEntries;
+    try {
+      zip = new AdmZip(zipFilePath);
+      zipEntries = zip.getEntries();
+      console.log('[ZIP Upload] ZIP file contains', zipEntries.length, 'entries');
+    } catch (zipError) {
+      console.error('[ZIP Upload] Error reading ZIP file:', zipError);
+      await fs.unlink(zipFilePath).catch(() => {});
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Failed to read ZIP file. Please ensure the file is a valid ZIP archive.',
+        error: zipError.message
+      });
+    }
 
     // Filter for image files only
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -485,10 +497,20 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
       
       try {
         // Get file buffer directly from ZIP entry
-        const fileBuffer = zip.readFile(entry);
+        let fileBuffer;
+        try {
+          fileBuffer = zip.readFile(entry);
+        } catch (readError) {
+          throw new Error(`Failed to read file from ZIP: ${readError.message}`);
+        }
         
         if (!fileBuffer) {
-          throw new Error('Failed to read file from ZIP');
+          throw new Error('Failed to read file from ZIP: file buffer is empty');
+        }
+        
+        // Check if file is too large (optional safety check - 100MB per image)
+        if (fileBuffer.length > 100 * 1024 * 1024) {
+          throw new Error(`File too large: ${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB (max 100MB per image)`);
         }
         
         // Generate unique filename
@@ -538,6 +560,13 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
     });
   } catch (error) {
     console.error('[ZIP Upload] Error:', error);
+    console.error('[ZIP Upload] Error stack:', error.stack);
+    console.error('[ZIP Upload] Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      errno: error.errno
+    });
     
     // Clean up on error
     if (zipFilePath) {
@@ -547,7 +576,12 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
     res.status(500).json({ 
       success: false, 
       message: 'Failed to process ZIP file', 
-      error: error.message
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? {
+        name: error.name,
+        code: error.code,
+        stack: error.stack
+      } : undefined
     });
   }
 });
