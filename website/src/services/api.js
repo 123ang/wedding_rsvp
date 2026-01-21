@@ -348,11 +348,11 @@ export const checkAdminAuth = () => {
   let adminRole = localStorage.getItem('admin_role');
   
   // If role is not in localStorage, default to 'admin' for backward compatibility
-  // But also check if we can fetch it from the API if needed
+  // This silently handles older sessions that don't have role stored
   if (!adminRole && adminEmail && adminId) {
-    console.warn('Admin role not found in localStorage, defaulting to admin');
     adminRole = 'admin';
-    // Optionally, we could fetch the role from the API here
+    // Save it to localStorage to avoid repeated checks
+    localStorage.setItem('admin_role', adminRole);
   }
   
   return {
