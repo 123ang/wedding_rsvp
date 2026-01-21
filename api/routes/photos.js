@@ -491,55 +491,84 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
     const photosDir = path.join(__dirname, '../../uploads/photos');
     await fs.mkdir(photosDir, { recursive: true });
 
-    // Process each image from ZIP (using buffer directly, no need to extract to disk first)
-    for (let i = 0; i < imageEntries.length; i++) {
-      const entry = imageEntries[i];
+    // Process images in batches of 100 to prevent memory issues
+    const BATCH_SIZE = 100;
+    const totalBatches = Math.ceil(imageEntries.length / BATCH_SIZE);
+    
+    console.log(`[ZIP Upload] Processing ${imageEntries.length} images in ${totalBatches} batches of ${BATCH_SIZE}`);
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batchStart = batchIndex * BATCH_SIZE;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, imageEntries.length);
+      const batch = imageEntries.slice(batchStart, batchEnd);
       
-      try {
-        // Get file buffer directly from ZIP entry
-        let fileBuffer;
+      console.log(`[ZIP Upload] Processing batch ${batchIndex + 1}/${totalBatches} (images ${batchStart + 1}-${batchEnd} of ${imageEntries.length})`);
+      
+      // Process each image in the current batch
+      for (let i = 0; i < batch.length; i++) {
+        const entry = batch[i];
+        const globalIndex = batchStart + i;
+        
         try {
-          fileBuffer = zip.readFile(entry);
-        } catch (readError) {
-          throw new Error(`Failed to read file from ZIP: ${readError.message}`);
+          // Get file buffer directly from ZIP entry
+          let fileBuffer;
+          try {
+            fileBuffer = zip.readFile(entry);
+          } catch (readError) {
+            throw new Error(`Failed to read file from ZIP: ${readError.message}`);
+          }
+          
+          if (!fileBuffer) {
+            throw new Error('Failed to read file from ZIP: file buffer is empty');
+          }
+          
+          // Check if file is too large (optional safety check - 100MB per image)
+          if (fileBuffer.length > 100 * 1024 * 1024) {
+            throw new Error(`File too large: ${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB (max 100MB per image)`);
+          }
+          
+          // Generate unique filename
+          const uniqueSuffix = Date.now() + '-' + globalIndex + '-' + Math.round(Math.random() * 1E9);
+          const originalExt = path.extname(entry.entryName);
+          const newFilename = 'photo-' + uniqueSuffix + originalExt;
+          const destPath = path.join(photosDir, newFilename);
+
+          // Write to photos directory
+          await fs.writeFile(destPath, fileBuffer);
+
+          // Generate image URL
+          const imageUrl = `/uploads/photos/${newFilename}`;
+
+          // Insert into photographer_photo table
+          await pool.execute(
+            'INSERT INTO photographer_photo (image_url, category, photographer_email) VALUES (?, ?, ?)',
+            [imageUrl, category, req.admin.email]
+          );
+
+          results.successful++;
+          
+          // Log every 10 images or at batch boundaries
+          if ((globalIndex + 1) % 10 === 0 || i === batch.length - 1) {
+            console.log(`[ZIP Upload] Processed ${globalIndex + 1}/${imageEntries.length} images (${results.successful} successful, ${results.failed} failed)`);
+          }
+        } catch (err) {
+          results.failed++;
+          results.errors.push({
+            filename: entry.entryName,
+            error: err.message
+          });
+          console.error(`[ZIP Upload] Error processing ${entry.entryName}:`, err.message);
         }
-        
-        if (!fileBuffer) {
-          throw new Error('Failed to read file from ZIP: file buffer is empty');
-        }
-        
-        // Check if file is too large (optional safety check - 100MB per image)
-        if (fileBuffer.length > 100 * 1024 * 1024) {
-          throw new Error(`File too large: ${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB (max 100MB per image)`);
-        }
-        
-        // Generate unique filename
-        const uniqueSuffix = Date.now() + '-' + i + '-' + Math.round(Math.random() * 1E9);
-        const originalExt = path.extname(entry.entryName);
-        const newFilename = 'photo-' + uniqueSuffix + originalExt;
-        const destPath = path.join(photosDir, newFilename);
-
-        // Write to photos directory
-        await fs.writeFile(destPath, fileBuffer);
-
-        // Generate image URL
-        const imageUrl = `/uploads/photos/${newFilename}`;
-
-        // Insert into photographer_photo table
-        await pool.execute(
-          'INSERT INTO photographer_photo (image_url, category, photographer_email) VALUES (?, ?, ?)',
-          [imageUrl, category, req.admin.email]
-        );
-
-        results.successful++;
-        console.log(`[ZIP Upload] Successfully processed image ${i + 1}/${imageEntries.length}: ${entry.entryName}`);
-      } catch (err) {
-        results.failed++;
-        results.errors.push({
-          filename: entry.entryName,
-          error: err.message
-        });
-        console.error(`[ZIP Upload] Error processing ${entry.entryName}:`, err.message);
+      }
+      
+      // Clear memory between batches (force garbage collection hint)
+      if (global.gc && batchIndex < totalBatches - 1) {
+        global.gc();
+      }
+      
+      // Small delay between batches to allow memory cleanup
+      if (batchIndex < totalBatches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
