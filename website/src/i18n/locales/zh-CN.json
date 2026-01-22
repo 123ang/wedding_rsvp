@@ -67,7 +67,20 @@
   },
   "gallery": {
     "viewPhoto": "查看照片",
-    "photoAlt": "婚礼照片"
+    "photoAlt": "婚礼照片",
+    "categories": {
+      "preWedding": "婚前拍摄",
+      "bridesDinner": "新娘晚宴",
+      "morningWedding": "早晨婚礼",
+      "groomsDinner": "新郎晚宴"
+    },
+    "slideshow": "幻灯片",
+    "stopSlideshow": "停止幻灯片",
+    "downloadAll": "下载全部",
+    "photos": "张照片",
+    "creatingZip": "正在创建ZIP...",
+    "noPhotosToDownload": "没有可下载的照片",
+    "downloadAllTitle": "下载全部{{count}}张照片为ZIP文件"
   },
   "photos": {
     "brideAlt": "美丽的新娘照片",

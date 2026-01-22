@@ -67,7 +67,20 @@
   },
   "gallery": {
     "viewPhoto": "View Photo",
-    "photoAlt": "Wedding Photo"
+    "photoAlt": "Wedding Photo",
+    "categories": {
+      "preWedding": "Pre-Wedding",
+      "bridesDinner": "Bride's Dinner",
+      "morningWedding": "Morning Wedding",
+      "groomsDinner": "Groom's Dinner"
+    },
+    "slideshow": "Slideshow",
+    "stopSlideshow": "Stop Slideshow",
+    "downloadAll": "Download All",
+    "photos": "Photos",
+    "creatingZip": "Creating ZIP...",
+    "noPhotosToDownload": "No photos to download",
+    "downloadAllTitle": "Download All {{count}} Photos as ZIP"
   },
   "photos": {
     "brideAlt": "Beautiful bride photo",

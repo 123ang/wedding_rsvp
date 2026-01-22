@@ -67,7 +67,20 @@
   },
   "gallery": {
     "viewPhoto": "写真を見る",
-    "photoAlt": "結婚式の写真"
+    "photoAlt": "結婚式の写真",
+    "categories": {
+      "preWedding": "プレウェディング",
+      "bridesDinner": "花嫁のディナー",
+      "morningWedding": "モーニングウェディング",
+      "groomsDinner": "花婿のディナー"
+    },
+    "slideshow": "スライドショー",
+    "stopSlideshow": "スライドショーを停止",
+    "downloadAll": "すべてダウンロード",
+    "photos": "枚の写真",
+    "creatingZip": "ZIP作成中...",
+    "noPhotosToDownload": "ダウンロードする写真がありません",
+    "downloadAllTitle": "すべての{{count}}枚の写真をZIPとしてダウンロード"
   },
   "photos": {
     "brideAlt": "美しい花嫁の写真",

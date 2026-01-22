@@ -27,15 +27,29 @@ A Python-based batch processing script that handles large ZIP files (>2GB) bette
 
 First, install the required Python package:
 
+**On most Linux systems (including VPS):**
 ```bash
 cd api/scripts
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
-Or install directly:
-
+**Or if pip3 is not found, try:**
 ```bash
-pip install mysql-connector-python
+python3 -m pip install -r requirements.txt
+```
+
+**Or install pip first (Ubuntu/Debian):**
+```bash
+apt-get update
+apt-get install python3-pip
+pip3 install -r requirements.txt
+```
+
+**Or install directly:**
+```bash
+pip3 install mysql-connector-python
+# or
+python3 -m pip install mysql-connector-python
 ```
 
 ### Usage

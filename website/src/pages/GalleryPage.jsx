@@ -524,25 +524,25 @@ const GalleryPage = () => {
               className={`gallery-tab ${activeTab === 'pre-wedding' ? 'active' : ''}`}
               onClick={() => setActiveTab('pre-wedding')}
             >
-              Pre-Wedding
+              {t('gallery.categories.preWedding')}
             </button>
             <button
               className={`gallery-tab ${activeTab === 'brides-dinner' ? 'active' : ''}`}
               onClick={() => setActiveTab('brides-dinner')}
             >
-              Bride's Dinner
+              {t('gallery.categories.bridesDinner')}
             </button>
             <button
               className={`gallery-tab ${activeTab === 'morning-wedding' ? 'active' : ''}`}
               onClick={() => setActiveTab('morning-wedding')}
             >
-              Morning Wedding
+              {t('gallery.categories.morningWedding')}
             </button>
             <button
               className={`gallery-tab ${activeTab === 'grooms-dinner' ? 'active' : ''}`}
               onClick={() => setActiveTab('grooms-dinner')}
             >
-              Groom's Dinner
+              {t('gallery.categories.groomsDinner')}
             </button>
           </div>
           {!loading && (
@@ -553,15 +553,15 @@ const GalleryPage = () => {
                 title="Start Fullscreen Slideshow"
                 disabled={filteredPhotos.length === 0}
               >
-                ▶️ Slideshow
+                ▶️ {t('gallery.slideshow')}
               </button>
               <button
                 onClick={handleDownloadAll}
                 className={`download-all-btn ${filteredPhotos.length === 0 || downloadingZip ? 'disabled' : ''}`}
-                title={filteredPhotos.length === 0 ? 'No photos to download' : downloadingZip ? 'Creating zip file...' : `Download All ${totalPhotos} Photos as ZIP`}
+                title={filteredPhotos.length === 0 ? t('gallery.noPhotosToDownload') : downloadingZip ? t('gallery.creatingZip') : t('gallery.downloadAllTitle', { count: totalPhotos })}
                 disabled={filteredPhotos.length === 0 || downloadingZip}
               >
-                {downloadingZip ? '⏳ Creating ZIP...' : `⬇️ Download All (${totalPhotos} Photos)`}
+                {downloadingZip ? `⏳ ${t('gallery.creatingZip')}` : `⬇️ ${t('gallery.downloadAll')} (${totalPhotos} ${t('gallery.photos')})`}
               </button>
             </div>
           )}
@@ -685,7 +685,7 @@ const GalleryPage = () => {
         {slideshowActive && open && (
           <div className="slideshow-controls">
             <button onClick={stopSlideshow} className="slideshow-stop-btn">
-              ⏹ Stop Slideshow
+              ⏹ {t('gallery.stopSlideshow')}
             </button>
           </div>
         )}
