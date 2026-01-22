@@ -19,8 +19,10 @@ const PhotographerUploadPage = () => {
   const [zipProgress, setZipProgress] = useState(0);
   const [showZipDialog, setShowZipDialog] = useState(false);
   const [zipDialogResults, setZipDialogResults] = useState(null);
+  const [cancelUpload, setCancelUpload] = useState(false);
   const fileInputRef = useRef(null);
   const zipInputRef = useRef(null);
+  const uploadAbortControllers = useRef([]);
   const navigate = useNavigate();
 
   // Check authentication - allow both admin and photographer roles
@@ -194,8 +196,11 @@ const PhotographerUploadPage = () => {
     }
 
     setUploading(true);
+    setCancelUpload(false);
     setError('');
     setSuccess('');
+    uploadAbortControllers.current = [];
+    
     // Initialize progress for all files
     const initialProgress = {};
     selectedFiles.forEach((_, index) => {
@@ -209,9 +214,29 @@ const PhotographerUploadPage = () => {
     let errorCount = 0;
 
     try {
-      // Upload files sequentially (1 by 1)
+      // Upload files sequentially (1 by 1) with timeout
       for (let index = 0; index < selectedFiles.length; index++) {
+        // Check if upload was cancelled
+        if (cancelUpload) {
+          setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            for (let i = index; i < selectedFiles.length; i++) {
+              if (newProgress[i]?.status === 'uploading') {
+                newProgress[i] = { progress: 0, status: 'error' };
+              }
+            }
+            return newProgress;
+          });
+          setError('Upload cancelled by user');
+          break;
+        }
+
         const file = selectedFiles[index];
+        
+        // Small delay between uploads to prevent overwhelming the server (except for first file)
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
         
         try {
           const formData = new FormData();
@@ -219,13 +244,21 @@ const PhotographerUploadPage = () => {
           formData.append('user_name', auth.email);
           formData.append('category', category);
 
-          // Create XMLHttpRequest for progress tracking
+          // Create XMLHttpRequest for progress tracking with timeout
           await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            const abortController = new AbortController();
+            uploadAbortControllers.current.push({ xhr, abortController });
+
+            // Set timeout (5 minutes per file)
+            const timeout = setTimeout(() => {
+              xhr.abort();
+              reject(new Error(`Upload timeout for ${file.name} (exceeded 5 minutes)`));
+            }, 5 * 60 * 1000);
 
             // Track upload progress
             xhr.upload.addEventListener('progress', (e) => {
-              if (e.lengthComputable) {
+              if (e.lengthComputable && !cancelUpload) {
                 const progress = Math.round((e.loaded / e.total) * 100);
                 setUploadProgress(prev => ({
                   ...prev,
@@ -235,17 +268,22 @@ const PhotographerUploadPage = () => {
             });
 
             xhr.addEventListener('load', () => {
+              clearTimeout(timeout);
               if (xhr.status >= 200 && xhr.status < 300) {
-                const data = JSON.parse(xhr.responseText);
-                if (data.success) {
-                  setUploadProgress(prev => ({
-                    ...prev,
-                    [index]: { progress: 100, status: 'success' }
-                  }));
-                  successCount++;
-                  resolve(data);
-                } else {
-                  throw new Error(data.message || 'Upload failed');
+                try {
+                  const data = JSON.parse(xhr.responseText);
+                  if (data.success) {
+                    setUploadProgress(prev => ({
+                      ...prev,
+                      [index]: { progress: 100, status: 'success' }
+                    }));
+                    successCount++;
+                    resolve(data);
+                  } else {
+                    throw new Error(data.message || 'Upload failed');
+                  }
+                } catch (parseError) {
+                  reject(new Error('Invalid server response'));
                 }
               } else {
                 reject(new Error(`Upload failed with status ${xhr.status}`));
@@ -253,36 +291,46 @@ const PhotographerUploadPage = () => {
             });
 
             xhr.addEventListener('error', () => {
-              reject(new Error('Network error'));
+              clearTimeout(timeout);
+              reject(new Error('Network error - please check your connection'));
             });
 
             xhr.addEventListener('abort', () => {
+              clearTimeout(timeout);
               reject(new Error('Upload aborted'));
             });
 
-            xhr.open('POST', `${API_BASE_URL}/photos/upload`);
-            xhr.setRequestHeader('x-admin-email', adminEmail);
-            xhr.setRequestHeader('x-admin-id', adminId);
-            xhr.send(formData);
+            try {
+              xhr.open('POST', `${API_BASE_URL}/photos/upload`);
+              xhr.setRequestHeader('x-admin-email', adminEmail);
+              xhr.setRequestHeader('x-admin-id', adminId);
+              xhr.send(formData);
+            } catch (openError) {
+              clearTimeout(timeout);
+              reject(new Error('Failed to initiate upload request'));
+            }
           });
         } catch (err) {
-          console.error(`Error uploading file ${index + 1}:`, err);
+          console.error(`Error uploading file ${index + 1} (${file.name}):`, err);
           setUploadProgress(prev => ({
             ...prev,
-            [index]: { progress: 0, status: 'error' }
+            [index]: { progress: 0, status: 'error', error: err.message }
           }));
           errorCount++;
+          // Continue with next file instead of stopping
         }
       }
       
-      if (successCount > 0) {
+      if (cancelUpload) {
+        setError('Upload cancelled');
+      } else if (successCount > 0) {
         setSuccess(`Successfully uploaded ${successCount} photo(s)!${errorCount > 0 ? ` (${errorCount} failed)` : ''}`);
         // Refresh photo list if on manage tab
         if (activeTab === 'manage') {
           fetchMyPhotos();
         }
       } else {
-        setError('All uploads failed. Please try again.');
+        setError('All uploads failed. Please check your connection and try again.');
       }
 
       // Clear selected files and reset after a delay
@@ -301,7 +349,19 @@ const PhotographerUploadPage = () => {
       setError(err.message || 'Failed to upload photos. Please try again.');
     } finally {
       setUploading(false);
+      uploadAbortControllers.current = [];
     }
+  };
+
+  const handleCancelUpload = () => {
+    setCancelUpload(true);
+    // Abort all ongoing requests
+    uploadAbortControllers.current.forEach(({ xhr }) => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) {
+        xhr.abort();
+      }
+    });
+    uploadAbortControllers.current = [];
   };
 
   const handleDeletePhoto = async (photoId, imageUrl) => {
@@ -452,7 +512,9 @@ const PhotographerUploadPage = () => {
                         )}
                         
                         {progress.status === 'error' && (
-                          <div className="upload-status error">✕ Failed</div>
+                          <div className="upload-status error" title={progress.error || 'Upload failed'}>
+                            ✕ Failed
+                          </div>
                         )}
                         
                         {!uploading && progress.status === 'pending' && (
@@ -469,13 +531,29 @@ const PhotographerUploadPage = () => {
                 </div>
               </div>
 
-              <button
-                onClick={handleUpload}
-                className="upload-btn"
-                disabled={uploading}
-              >
-                {uploading ? `⏳ Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `📤 Upload ${selectedFiles.length} Photo(s)`}
-              </button>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+                <button
+                  onClick={handleUpload}
+                  className="upload-btn"
+                  disabled={uploading}
+                  style={{ flex: 1 }}
+                >
+                  {uploading ? `⏳ Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `📤 Upload ${selectedFiles.length} Photo(s)`}
+                </button>
+                {uploading && (
+                  <button
+                    onClick={handleCancelUpload}
+                    className="upload-btn"
+                    style={{ 
+                      flex: '0 0 auto', 
+                      background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+                      minWidth: '120px'
+                    }}
+                  >
+                    ❌ Cancel
+                  </button>
+                )}
+              </div>
             </>
           )}
 
