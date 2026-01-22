@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import Lightbox from 'yet-another-react-lightbox';
+import { Download } from 'yet-another-react-lightbox/plugins';
 import 'yet-another-react-lightbox/styles.css';
 import JSZip from 'jszip';
 import { API_BASE_URL } from '../config/api';
@@ -546,7 +547,7 @@ const GalleryPage = () => {
             </button>
           </div>
           {!loading && (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="gallery-action-buttons">
               <button
                 onClick={startSlideshow}
                 className="slideshow-btn"
@@ -671,6 +672,10 @@ const GalleryPage = () => {
           }}
           slides={slideshowActive && allPhotosForSlideshow.length > 0 ? allPhotosForSlideshow : filteredPhotos}
           index={currentIndex}
+          plugins={[Download]}
+          toolbar={{
+            buttons: ['download', 'close']
+          }}
           on={{
             view: ({ index }) => {
               setCurrentIndex(index);

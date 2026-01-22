@@ -412,16 +412,36 @@
 
 @media (max-width: 480px) {
   .background-music {
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
   
   .music-controls {
-    flex-direction: column;
+    flex-direction: row;
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
   }
   
   .volume-control {
-    min-width: 90px;
-    padding: 5px 8px;
+    min-width: 100px;
+    padding: 4px 8px;
+    flex: 0 0 auto;
+  }
+  
+  .music-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+    flex: 0 0 auto;
+  }
+  
+  .volume-slider {
+    height: 3px;
+  }
+  
+  .volume-display {
+    font-size: 10px;
+    min-width: 30px;
   }
 }

@@ -216,8 +216,7 @@ const BackgroundMusic = forwardRef((props, ref) => {
         <audio
           id="background-music"
           src={musicSources[currentTrack]}
-          onEnded={handleEnded}
-          loop={false}
+          loop={true}
           preload="auto"
           playsInline
         />
