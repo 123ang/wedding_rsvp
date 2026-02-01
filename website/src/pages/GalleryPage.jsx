@@ -9,7 +9,7 @@ import './GalleryPage.css';
 
 const PHOTOS_PER_PAGE = 30;
 const CACHE_NAME = 'gallery-images-cache-v1';
-const SLIDESHOW_INTERVAL = 2500; // 2.5 seconds
+const SLIDESHOW_INTERVAL = 5000; // 5 seconds
 
 const GalleryPage = () => {
   // Disable sakura petals while on gallery
