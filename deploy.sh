@@ -1,23 +1,17 @@
 #!/bin/bash
 #
-# Deploy wedding website to VPS
-# Builds the frontend and syncs dist/ to the server.
+# Deploy wedding website (run on the server after git pull).
+# Builds the frontend and syncs dist/ to the web root.
 #
-# First-time setup:
-#   1. Set VPS_USER and VPS_HOST below (or export them)
-#   2. Ensure you can SSH: ssh $VPS_USER@$VPS_HOST
-#   3. chmod +x deploy.sh && ./deploy.sh
+# Usage on VPS:  git pull && ./deploy.sh
 #
-# Usage:
-#   ./deploy.sh              # build + deploy (tries SSH first; if that fails, deploys locally)
+#   ./deploy.sh              # build + deploy
 #   ./deploy.sh --build      # build only (no deploy)
 #   ./deploy.sh --deploy     # deploy only (no build; use existing dist/)
 
 set -e
 
-# --- Configure (override with env vars) ---
-VPS_USER="${VPS_USER:-root}"
-VPS_HOST="${VPS_HOST:-jsang-psong-wedding.com}"
+# --- Configure (override with env) ---
 REMOTE_PATH="${REMOTE_PATH:-/var/www/jsang-psong-wedding.com}"
 
 # Project root (directory containing website/)
@@ -61,57 +55,22 @@ fi
 
 # --- Deploy ---
 echo "=================================================="
-echo "  Deploying to VPS"
+echo "  Deploying to $REMOTE_PATH"
 echo "=================================================="
-
-do_local_deploy() {
-    echo "  Target: $REMOTE_PATH (local)"
-    echo ""
-    mkdir -p "$REMOTE_PATH"
-    if command -v rsync &>/dev/null; then
-        rsync -a --delete "$PROJECT_ROOT/website/dist/" "$REMOTE_PATH/"
-    else
-        cp -r "$PROJECT_ROOT/website/dist/"* "$REMOTE_PATH/"
-    fi
-    echo "Setting permissions..."
-    chown -R www-data:www-data "$REMOTE_PATH"
-    chmod -R 755 "$REMOTE_PATH"
-    # Restart API so backend changes (e.g. api/routes) take effect
-    if command -v pm2 &>/dev/null; then
-        if pm2 describe wedding-api &>/dev/null; then
-            echo "Restarting API (pm2 restart wedding-api)..."
-            pm2 restart wedding-api
-        fi
-    fi
-}
-
-do_remote_deploy() {
-    echo "  Target: $VPS_USER@$VPS_HOST:$REMOTE_PATH"
-    echo ""
-    if command -v rsync &>/dev/null; then
-        rsync -avz --delete "$PROJECT_ROOT/website/dist/" "$VPS_USER@$VPS_HOST:$REMOTE_PATH/"
-    else
-        ssh "$VPS_USER@$VPS_HOST" "mkdir -p $REMOTE_PATH"
-        scp -r "$PROJECT_ROOT/website/dist/"* "$VPS_USER@$VPS_HOST:$REMOTE_PATH/"
-    fi
-    echo ""
-    echo "Setting permissions on server..."
-    ssh "$VPS_USER@$VPS_HOST" "chown -R www-data:www-data $REMOTE_PATH && chmod -R 755 $REMOTE_PATH"
-    echo "Restarting API on server..."
-    ssh "$VPS_USER@$VPS_HOST" "command -v pm2 &>/dev/null && pm2 describe wedding-api &>/dev/null && pm2 restart wedding-api || true"
-}
-
-if do_remote_deploy 2>/dev/null; then
-    :
+mkdir -p "$REMOTE_PATH"
+if command -v rsync &>/dev/null; then
+    rsync -a --delete "$PROJECT_ROOT/website/dist/" "$REMOTE_PATH/"
 else
-    echo "  (SSH failed, deploying locally)"
-    echo ""
-    do_local_deploy
+    cp -r "$PROJECT_ROOT/website/dist/"* "$REMOTE_PATH/"
 fi
-
+echo "Setting permissions..."
+chown -R www-data:www-data "$REMOTE_PATH"
+chmod -R 755 "$REMOTE_PATH"
+if command -v pm2 &>/dev/null && pm2 describe wedding-api &>/dev/null; then
+    echo "Restarting API (pm2 restart wedding-api)..."
+    pm2 restart wedding-api
+fi
 echo ""
 echo "=================================================="
 echo "  ✅ Deploy complete"
 echo "=================================================="
-echo "  Site: https://${VPS_HOST:-jsang-psong-wedding.com}"
-echo ""
