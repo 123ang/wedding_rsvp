@@ -217,8 +217,8 @@ def process_photographer_photos(conn, category=None, only_new=False, dry_run=Fal
             stats['skipped'] += 1
             continue
         
-        # Generate thumbnail filename
-        thumbnail_filename = f'thumb_{source_path.name}'
+        # Generate unique thumbnail filename (use photo id to avoid collisions e.g. pre_wedding/17.jpg vs other/17.jpg)
+        thumbnail_filename = f'thumb_{photo_id}.jpg'
         thumbnail_path = THUMBNAILS_DIR / thumbnail_filename
         thumbnail_url = f'/uploads/photos/thumbnails/{thumbnail_filename}'
         
