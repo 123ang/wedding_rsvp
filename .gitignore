@@ -7,7 +7,7 @@ yarn.lock
 # Production build
 dist/
 build/
-public/
+# Don't ignore website/public/ – favicon, photos, music must be in repo for deploy
 
 # Environment variables
 .env
