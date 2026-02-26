@@ -76,6 +76,13 @@ do_local_deploy() {
     echo "Setting permissions..."
     chown -R www-data:www-data "$REMOTE_PATH"
     chmod -R 755 "$REMOTE_PATH"
+    # Restart API so backend changes (e.g. api/routes) take effect
+    if command -v pm2 &>/dev/null; then
+        if pm2 describe wedding-api &>/dev/null; then
+            echo "Restarting API (pm2 restart wedding-api)..."
+            pm2 restart wedding-api
+        fi
+    fi
 }
 
 do_remote_deploy() {
@@ -90,6 +97,8 @@ do_remote_deploy() {
     echo ""
     echo "Setting permissions on server..."
     ssh "$VPS_USER@$VPS_HOST" "chown -R www-data:www-data $REMOTE_PATH && chmod -R 755 $REMOTE_PATH"
+    echo "Restarting API on server..."
+    ssh "$VPS_USER@$VPS_HOST" "command -v pm2 &>/dev/null && pm2 describe wedding-api &>/dev/null && pm2 restart wedding-api || true"
 }
 
 if do_remote_deploy 2>/dev/null; then
