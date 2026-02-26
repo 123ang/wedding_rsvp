@@ -3,7 +3,28 @@
 ## Overview
 After running `npm run build` in the `website` directory, the built files are in the `website/dist` folder. These need to be copied to `/var/www/jsang-psong-wedding.com` on your VPS.
 
-## Option 1: Build Locally and Copy to VPS (Recommended)
+## Quick deploy (recommended): `deploy.sh`
+
+From the project root:
+
+```bash
+# One-time: set your VPS user/host if not using defaults (root @ jsang-psong-wedding.com)
+export VPS_USER=root
+export VPS_HOST=jsang-psong-wedding.com   # or your VPS IP
+
+chmod +x deploy.sh
+./deploy.sh
+```
+
+- **Full deploy (build + upload):** `./deploy.sh`
+- **Build only:** `./deploy.sh --build`
+- **Upload only (use existing dist):** `./deploy.sh --deploy`
+
+Uses `rsync` if available (faster, syncs only changes), otherwise `scp`. Sets permissions on the server after upload.
+
+---
+
+## Option 1: Build Locally and Copy to VPS (Manual)
 
 ### Step 1: Build the website locally
 ```bash
