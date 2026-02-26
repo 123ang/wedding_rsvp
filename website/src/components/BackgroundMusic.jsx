@@ -7,10 +7,10 @@ const BackgroundMusic = forwardRef((props, ref) => {
   const [volume, setVolume] = useState(0.2);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
-  // Sample romantic wedding music URLs (you can replace with your own music files)
+  // Try these in order; first one that exists will play. Add your file to website/public/music/
   const musicSources = [
-    // You can add your own music files to the public folder
-    '/music/wedding_music.mp3', // Your actual music file
+    '/music/wedding_music.mp3',
+    '/music/wedding_music_2.mp3',
     '/music/wedding-music-1.mp3',
     '/music/wedding-music-2.mp3',
     '/music/romantic-piano.mp3'
@@ -63,9 +63,7 @@ const BackgroundMusic = forwardRef((props, ref) => {
         setIsMuted(false);
         setHasUserInteracted(true);
         console.log('[Music] Started via enable-music event');
-      }).catch(err => {
-        console.log('[Music] Failed to start via event:', err && (err.name + ':' + err.message));
-      });
+      }).catch(() => {});
     };
     document.addEventListener('enable-music', handler);
     return () => document.removeEventListener('enable-music', handler);
@@ -89,9 +87,9 @@ const BackgroundMusic = forwardRef((props, ref) => {
         setIsMuted(false);
         setHasUserInteracted(true);
         console.log('[Music] Started automatically on user interaction');
-      }).catch(err => {
-        console.log('[Music] Failed to start:', err && (err.name + ':' + err.message));
-        started = false; // Allow retry on failure
+      }).catch(() => {
+        // Music file missing or unsupported – fail silently (add public/music/wedding_music.mp3 to enable)
+        started = false;
       });
     };
 
@@ -158,7 +156,7 @@ const BackgroundMusic = forwardRef((props, ref) => {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 2);
     
-    console.log('Playing test tone - add music files to /public/music/ folder');
+    // Add website/public/music/wedding_music.mp3 to enable background music
   };
 
   const toggleMute = () => {
