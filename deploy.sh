@@ -9,8 +9,7 @@
 #   3. chmod +x deploy.sh && ./deploy.sh
 #
 # Usage:
-#   ./deploy.sh              # build + deploy (from your PC, via SSH/rsync)
-#   ./deploy.sh --local      # build + deploy on THIS machine (when you're already on the VPS)
+#   ./deploy.sh              # build + deploy (tries SSH first; if that fails, deploys locally)
 #   ./deploy.sh --build      # build only (no deploy)
 #   ./deploy.sh --deploy     # deploy only (no build; use existing dist/)
 
@@ -36,12 +35,10 @@ fi
 
 BUILD_ONLY=false
 DEPLOY_ONLY=false
-DEPLOY_LOCAL=false
 for arg in "$@"; do
     case "$arg" in
         --build)   BUILD_ONLY=true ;;
         --deploy)  DEPLOY_ONLY=true ;;
-        --local)   DEPLOY_LOCAL=true ;;
     esac
 done
 
@@ -67,10 +64,8 @@ echo "=================================================="
 echo "  Deploying to VPS"
 echo "=================================================="
 
-if [ "$DEPLOY_LOCAL" = true ]; then
-    # Already on the VPS: copy dist to web root on this machine (no SSH)
-    echo "  Mode: local (copy on this machine)"
-    echo "  Target: $REMOTE_PATH"
+do_local_deploy() {
+    echo "  Target: $REMOTE_PATH (local)"
     echo ""
     mkdir -p "$REMOTE_PATH"
     if command -v rsync &>/dev/null; then
@@ -81,21 +76,28 @@ if [ "$DEPLOY_LOCAL" = true ]; then
     echo "Setting permissions..."
     chown -R www-data:www-data "$REMOTE_PATH"
     chmod -R 755 "$REMOTE_PATH"
-else
-    # Deploy from your PC to VPS via SSH
+}
+
+do_remote_deploy() {
     echo "  Target: $VPS_USER@$VPS_HOST:$REMOTE_PATH"
     echo ""
     if command -v rsync &>/dev/null; then
-        echo "Using rsync..."
         rsync -avz --delete "$PROJECT_ROOT/website/dist/" "$VPS_USER@$VPS_HOST:$REMOTE_PATH/"
     else
-        echo "Using scp (install rsync for faster updates)..."
         ssh "$VPS_USER@$VPS_HOST" "mkdir -p $REMOTE_PATH"
         scp -r "$PROJECT_ROOT/website/dist/"* "$VPS_USER@$VPS_HOST:$REMOTE_PATH/"
     fi
     echo ""
     echo "Setting permissions on server..."
     ssh "$VPS_USER@$VPS_HOST" "chown -R www-data:www-data $REMOTE_PATH && chmod -R 755 $REMOTE_PATH"
+}
+
+if do_remote_deploy 2>/dev/null; then
+    :
+else
+    echo "  (SSH failed, deploying locally)"
+    echo ""
+    do_local_deploy
 fi
 
 echo ""
