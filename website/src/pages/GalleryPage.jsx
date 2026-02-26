@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useParams, useNavigate } from 'react-router-dom';
 import Lightbox from 'yet-another-react-lightbox';
 import { Download } from 'yet-another-react-lightbox/plugins';
 import 'yet-another-react-lightbox/styles.css';
@@ -12,6 +13,10 @@ const CACHE_NAME = 'gallery-images-cache-v1';
 const SLIDESHOW_INTERVAL = 5000; // 5 seconds
 
 const GalleryPage = () => {
+  // Get category from URL params
+  const { category: urlCategory } = useParams();
+  const navigate = useNavigate();
+  
   // Disable sakura petals while on gallery
   useEffect(() => {
     document.body.classList.add('no-petals');
@@ -23,17 +28,31 @@ const GalleryPage = () => {
   const [loadedImages, setLoadedImages] = useState(new Set());
   const [displayedPhotos, setDisplayedPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('pre-wedding');
+  const [activeTab, setActiveTab] = useState(urlCategory || 'pre-wedding');
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPhotos, setTotalPhotos] = useState(0);
   const [allPhotosForSlideshow, setAllPhotosForSlideshow] = useState([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
+  const [slideshowPaused, setSlideshowPaused] = useState(false);
   const [slideshowIndex, setSlideshowIndex] = useState(0);
   const slideshowIntervalRef = useRef(null);
   const imageRefs = useRef([]);
   const imageCache = useRef(new Map());
+
+  // Sync activeTab with URL category
+  useEffect(() => {
+    if (urlCategory && urlCategory !== activeTab) {
+      const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner'];
+      if (validCategories.includes(urlCategory)) {
+        setActiveTab(urlCategory);
+      } else {
+        // Invalid category, redirect to pre-wedding
+        navigate('/gallery/pre-wedding', { replace: true });
+      }
+    }
+  }, [urlCategory, activeTab, navigate]);
 
   // Category mappings
   const categories = {
@@ -117,6 +136,13 @@ const GalleryPage = () => {
           src: photo.image_url.startsWith('http') 
             ? photo.image_url 
             : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`,
+          thumbnail: photo.thumbnail_url 
+            ? (photo.thumbnail_url.startsWith('http') 
+                ? photo.thumbnail_url 
+                : `${API_BASE_URL.replace('/api', '')}${photo.thumbnail_url}`)
+            : (photo.image_url.startsWith('http') 
+                ? photo.image_url 
+                : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`),
           alt: photo.caption || `Photo by ${photo.user_name}`,
           id: photo.id,
           caption: photo.caption,
@@ -162,6 +188,13 @@ const GalleryPage = () => {
           src: photo.image_url.startsWith('http') 
             ? photo.image_url 
             : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`,
+          thumbnail: photo.thumbnail_url 
+            ? (photo.thumbnail_url.startsWith('http') 
+                ? photo.thumbnail_url 
+                : `${API_BASE_URL.replace('/api', '')}${photo.thumbnail_url}`)
+            : (photo.image_url.startsWith('http') 
+                ? photo.image_url 
+                : `${API_BASE_URL.replace('/api', '')}${photo.image_url}`),
           alt: photo.caption || `Photo by ${photo.user_name}`,
           id: photo.id,
           caption: photo.caption,
@@ -430,9 +463,14 @@ const GalleryPage = () => {
     if (slideshowPhotos.length === 0) return;
 
     setSlideshowActive(true);
-    setSlideshowIndex(0);
-    setCurrentIndex(0);
-    setOpen(true);
+    setSlideshowPaused(false);
+    
+    // If resuming, keep current index, otherwise start from beginning or current photo
+    if (!open) {
+      setSlideshowIndex(0);
+      setCurrentIndex(0);
+      setOpen(true);
+    }
 
     // Request fullscreen
     const element = document.documentElement;
@@ -452,8 +490,34 @@ const GalleryPage = () => {
     }, SLIDESHOW_INTERVAL);
   };
 
+  const pauseSlideshow = () => {
+    setSlideshowPaused(true);
+    if (slideshowIntervalRef.current) {
+      clearInterval(slideshowIntervalRef.current);
+      slideshowIntervalRef.current = null;
+    }
+  };
+
+  const resumeSlideshow = () => {
+    if (!slideshowActive || !slideshowPaused) return;
+    
+    setSlideshowPaused(false);
+    
+    const slideshowPhotos = allPhotosForSlideshow.length > 0 ? allPhotosForSlideshow : displayedPhotos;
+    
+    // Resume auto-advance from current position
+    slideshowIntervalRef.current = setInterval(() => {
+      setSlideshowIndex(prev => {
+        const nextIndex = (prev + 1) % slideshowPhotos.length;
+        setCurrentIndex(nextIndex);
+        return nextIndex;
+      });
+    }, SLIDESHOW_INTERVAL);
+  };
+
   const stopSlideshow = () => {
     setSlideshowActive(false);
+    setSlideshowPaused(false);
     if (slideshowIntervalRef.current) {
       clearInterval(slideshowIntervalRef.current);
       slideshowIntervalRef.current = null;
@@ -495,6 +559,7 @@ const GalleryPage = () => {
   useEffect(() => {
     if (!open && slideshowActive) {
       setSlideshowActive(false);
+      setSlideshowPaused(false);
       if (slideshowIntervalRef.current) {
         clearInterval(slideshowIntervalRef.current);
         slideshowIntervalRef.current = null;
@@ -523,25 +588,25 @@ const GalleryPage = () => {
           <div className="gallery-tabs">
             <button
               className={`gallery-tab ${activeTab === 'pre-wedding' ? 'active' : ''}`}
-              onClick={() => setActiveTab('pre-wedding')}
+              onClick={() => navigate('/gallery/pre-wedding')}
             >
               {t('gallery.categories.preWedding')}
             </button>
             <button
               className={`gallery-tab ${activeTab === 'brides-dinner' ? 'active' : ''}`}
-              onClick={() => setActiveTab('brides-dinner')}
+              onClick={() => navigate('/gallery/brides-dinner')}
             >
               {t('gallery.categories.bridesDinner')}
             </button>
             <button
               className={`gallery-tab ${activeTab === 'morning-wedding' ? 'active' : ''}`}
-              onClick={() => setActiveTab('morning-wedding')}
+              onClick={() => navigate('/gallery/morning-wedding')}
             >
               {t('gallery.categories.morningWedding')}
             </button>
             <button
               className={`gallery-tab ${activeTab === 'grooms-dinner' ? 'active' : ''}`}
-              onClick={() => setActiveTab('grooms-dinner')}
+              onClick={() => navigate('/gallery/grooms-dinner')}
             >
               {t('gallery.categories.groomsDinner')}
             </button>
@@ -594,7 +659,7 @@ const GalleryPage = () => {
               >
                 {loadedImages.has(index) ? (
                   <img
-                    src={photo.src}
+                    src={photo.thumbnail || photo.src}
                     alt={photo.alt}
                     loading="lazy"
                     onError={(e) => {
@@ -689,6 +754,15 @@ const GalleryPage = () => {
         {/* Slideshow Controls Overlay */}
         {slideshowActive && open && (
           <div className="slideshow-controls">
+            {slideshowPaused ? (
+              <button onClick={resumeSlideshow} className="slideshow-control-btn">
+                ▶️ {t('gallery.resumeSlideshow') || 'Resume'}
+              </button>
+            ) : (
+              <button onClick={pauseSlideshow} className="slideshow-control-btn">
+                ⏸️ {t('gallery.pauseSlideshow') || 'Pause'}
+              </button>
+            )}
             <button onClick={stopSlideshow} className="slideshow-stop-btn">
               ⏹ {t('gallery.stopSlideshow')}
             </button>

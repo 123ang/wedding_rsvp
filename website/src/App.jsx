@@ -63,7 +63,8 @@ function App() {
                       </LanguageRouteWrapper>
                     } />
                     <Route path="/groom-only" element={<Navigate to="/groom-only/cn" replace />} />
-                    <Route path="/gallery" element={<GalleryPage />} />
+                    <Route path="/gallery" element={<Navigate to="/gallery/pre-wedding" replace />} />
+                    <Route path="/gallery/:category" element={<GalleryPage />} />
                     <Route path="/videos" element={<VideosPage />} />
                   </Routes>
                 </main>

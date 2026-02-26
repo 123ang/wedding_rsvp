@@ -1,5 +1,70 @@
 # ZIP Upload Scripts
 
+## optimize-images.py ⭐ **NEW - Image Optimization System**
+
+Python script to optimize gallery images by creating thumbnails for faster loading.
+
+### Features
+
+- ✅ Creates thumbnails (1200x800px @ 90% quality) for gallery display
+- ✅ Keeps original high-quality images for lightbox viewing
+- ✅ Processes existing images in batch
+- ✅ Updates database automatically
+- ✅ Typically saves 60-80% of page load size
+- ✅ Can process specific categories or all images
+- ✅ Dry-run mode for preview
+
+### Installation
+
+```bash
+cd api/scripts
+pip3 install -r requirements.txt
+```
+
+### Usage
+
+**Optimize all images:**
+```bash
+python3 optimize-images.py --all
+```
+
+**Optimize only new images (faster):**
+```bash
+python3 optimize-images.py --new
+```
+
+**Optimize specific category:**
+```bash
+python3 optimize-images.py --new --category pre-wedding
+```
+
+**Preview without changes:**
+```bash
+python3 optimize-images.py --all --dry-run
+```
+
+### How It Works
+
+1. Reads images from database (`photographer_photo` table)
+2. Creates optimized thumbnails in `uploads/photos/thumbnails/`
+3. Updates database with thumbnail paths
+4. Gallery uses thumbnails for display, full images for lightbox
+
+### Configuration
+
+Edit script to change settings:
+- `THUMBNAIL_WIDTH = 1200` - Max width
+- `THUMBNAIL_HEIGHT = 800` - Max height  
+- `QUALITY = 90` - JPEG quality (0-100)
+
+### See Also
+
+- **Full Guide**: `IMAGE_OPTIMIZATION_GUIDE.md`
+- **Setup**: `../../setup-image-optimization.sh` or `.bat`
+- **Summary**: `../../IMAGE_OPTIMIZATION_SUMMARY.md`
+
+---
+
 ## upload-zip.js (Node.js)
 
 A standalone script to upload photos from a ZIP file to the wedding photo database.

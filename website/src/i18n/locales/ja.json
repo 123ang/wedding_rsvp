@@ -76,6 +76,8 @@
     },
     "slideshow": "スライドショー",
     "stopSlideshow": "スライドショーを停止",
+    "pauseSlideshow": "一時停止",
+    "resumeSlideshow": "再開",
     "downloadAll": "すべてダウンロード",
     "photos": "枚の写真",
     "creatingZip": "ZIP作成中...",

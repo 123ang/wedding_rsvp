@@ -58,8 +58,8 @@ const NavigationWithLang = () => {
           </li>
                  <li>
                    <Link
-                     to="/gallery"
-                     className={location.pathname === '/gallery' ? 'active' : ''}
+                     to="/gallery/pre-wedding"
+                     className={location.pathname.startsWith('/gallery') ? 'active' : ''}
                    >
                      {t('navigation.photoGallery')}
                    </Link>

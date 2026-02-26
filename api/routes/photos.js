@@ -8,9 +8,39 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const { spawn } = require('child_process');
 const AdmZip = require('adm-zip');
 const pool = require('../config/database');
 const { authenticateAdminOrPhotographer } = require('../middleware/auth');
+
+/**
+ * Trigger image optimization in background (for VPS / photographer portal).
+ * Runs optimize-images.py --new so only images without thumbnails are processed.
+ * Does not block the response; runs detached.
+ */
+function triggerImageOptimization() {
+  const apiDir = path.join(__dirname, '..');
+  const scriptPath = path.join(apiDir, 'scripts', 'optimize-images.py');
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+  try {
+    const scriptExists = require('fs').existsSync(scriptPath);
+    if (!scriptExists) {
+      console.log('[Photo Optimize] Script not found, skipping:', scriptPath);
+      return;
+    }
+
+    const child = spawn(pythonCmd, ['scripts/optimize-images.py', '--new'], {
+      cwd: apiDir,
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+    console.log('[Photo Optimize] Triggered background optimization (optimize-images.py --new)');
+  } catch (err) {
+    console.error('[Photo Optimize] Failed to trigger optimization:', err.message);
+  }
+}
 
 // Configure multer for photo uploads
 const storage = multer.diskStorage({
@@ -202,6 +232,7 @@ router.get('/photographer', async (req, res) => {
     let query = `SELECT 
         id,
         image_url,
+        thumbnail_url,
         category,
         photographer_email,
         created_at
@@ -222,6 +253,7 @@ router.get('/photographer', async (req, res) => {
     const transformedPhotos = photos.map(photo => ({
       id: photo.id,
       image_url: photo.image_url,
+      thumbnail_url: photo.thumbnail_url || photo.image_url, // Fallback to full image if no thumbnail
       user_name: photo.photographer_email || 'Photographer',
       photographer_email: photo.photographer_email, // Include for filtering in manage photos
       user_phone: null,
@@ -362,6 +394,9 @@ router.post('/upload', authenticateAdminOrPhotographer, upload.single('photo'), 
       
       const photoId = result.insertId;
       console.log('[Photo Upload] Successfully inserted into photographer_photo table:', photoId);
+
+      // Auto-run image optimization in background (thumbnails for gallery)
+      triggerImageOptimization();
 
       res.status(201).json({
         success: true,
@@ -576,6 +611,11 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
     await fs.unlink(zipFilePath).catch(() => {});
 
     console.log('[ZIP Upload] Completed:', results);
+
+    // Auto-run image optimization in background (thumbnails for gallery)
+    if (results.successful > 0) {
+      triggerImageOptimization();
+    }
 
     res.status(201).json({
       success: true,

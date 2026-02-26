@@ -76,6 +76,8 @@
     },
     "slideshow": "幻灯片",
     "stopSlideshow": "停止幻灯片",
+    "pauseSlideshow": "暂停",
+    "resumeSlideshow": "继续",
     "downloadAll": "下载全部",
     "photos": "张照片",
     "creatingZip": "正在创建ZIP...",

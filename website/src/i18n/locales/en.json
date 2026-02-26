@@ -76,6 +76,8 @@
     },
     "slideshow": "Slideshow",
     "stopSlideshow": "Stop Slideshow",
+    "pauseSlideshow": "Pause",
+    "resumeSlideshow": "Resume",
     "downloadAll": "Download All",
     "photos": "Photos",
     "creatingZip": "Creating ZIP...",

@@ -573,6 +573,26 @@
   align-items: center;
 }
 
+.slideshow-control-btn {
+  padding: 12px 24px;
+  background: rgba(76, 175, 80, 0.9);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.slideshow-control-btn:hover {
+  background: rgba(76, 175, 80, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
 .slideshow-stop-btn {
   padding: 12px 24px;
   background: rgba(220, 53, 69, 0.9);
