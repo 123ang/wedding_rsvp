@@ -16,21 +16,28 @@ const { authenticateAdminOrPhotographer } = require('../middleware/auth');
 /**
  * Trigger image optimization in background (for VPS / photographer portal).
  * Runs optimize-images.py --new so only images without thumbnails are processed.
+ * Uses api/.venv/bin/python3 when present (VPS/Debian PEP 668), else system python3.
  * Does not block the response; runs detached.
  */
 function triggerImageOptimization() {
+  const fsSync = require('fs');
   const apiDir = path.join(__dirname, '..');
   const scriptPath = path.join(apiDir, 'scripts', 'optimize-images.py');
-  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  const venvPython = path.join(apiDir, '.venv', 'bin', 'python3');
+
+  let pythonCmd = (process.platform === 'win32' ? 'python' : 'python3');
+  if (process.platform !== 'win32' && fsSync.existsSync(venvPython)) {
+    pythonCmd = venvPython;
+  }
 
   try {
-    const scriptExists = require('fs').existsSync(scriptPath);
-    if (!scriptExists) {
+    if (!fsSync.existsSync(scriptPath)) {
       console.log('[Photo Optimize] Script not found, skipping:', scriptPath);
       return;
     }
 
-    const child = spawn(pythonCmd, ['scripts/optimize-images.py', '--new'], {
+    const scriptArg = path.join(apiDir, 'scripts', 'optimize-images.py');
+    const child = spawn(pythonCmd, [scriptArg, '--new'], {
       cwd: apiDir,
       detached: true,
       stdio: 'ignore'

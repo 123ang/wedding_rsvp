@@ -6,6 +6,9 @@
 #   - VPS:    cd /root/projects/wedding_rsvp && ./setup-image-optimization.sh
 #
 # VPS (jsang-psong-wedding.com): API is on port 3002 behind nginx; uploads at /root/projects/wedding_rsvp/uploads
+#
+# On Debian/Ubuntu (PEP 668): uses a venv in api/.venv so no system pip install needed.
+# If venv creation fails, run: apt install python3-venv python3-full
 
 echo "=================================================="
 echo "  Image Optimization System Setup"
@@ -31,17 +34,28 @@ echo "📂 Project root: $PROJECT_ROOT"
 echo ""
 cd "$PROJECT_ROOT" || exit 1
 
-# Step 1: Install Python dependencies
-echo "📦 Step 1: Installing Python dependencies..."
-cd "$PROJECT_ROOT/api/scripts" || exit 1
-pip3 install -r requirements.txt
+# Step 1: Create virtual environment and install Python dependencies
+# (Avoids "externally-managed-environment" on Debian/Ubuntu with PEP 668)
+echo "📦 Step 1: Creating Python venv and installing dependencies..."
+cd "$PROJECT_ROOT/api" || exit 1
+VENV_DIR="$PROJECT_ROOT/api/.venv"
+
+if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR" || {
+        echo "❌ Failed to create venv. Install python3-venv: apt install python3-venv"
+        exit 1
+    }
+    echo "   Created venv at $VENV_DIR"
+fi
+
+"$VENV_DIR/bin/pip" install -q --upgrade pip
+"$VENV_DIR/bin/pip" install -r scripts/requirements.txt
 if [ $? -ne 0 ]; then
-    echo "❌ Failed to install Python dependencies"
-    echo "   Try: python3 -m pip install -r requirements.txt"
+    echo "❌ Failed to install Python dependencies into venv"
     exit 1
 fi
 cd "$PROJECT_ROOT" || exit 1
-echo "✅ Python dependencies installed"
+echo "✅ Python dependencies installed (venv: api/.venv)"
 echo ""
 
 # Step 2: Run database migration
@@ -70,12 +84,16 @@ read -p "   Optimize now? (y/n) " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     cd "$PROJECT_ROOT/api" || exit 1
-    python3 scripts/optimize-images.py --all
+    if [ -f ".venv/bin/python3" ]; then
+        .venv/bin/python3 scripts/optimize-images.py --all
+    else
+        python3 scripts/optimize-images.py --all
+    fi
     cd "$PROJECT_ROOT" || exit 1
     echo "✅ Image optimization complete!"
 else
     echo "⏭️  Skipped image optimization"
-    echo "   You can run it later with: cd $PROJECT_ROOT/api && python3 scripts/optimize-images.py --all"
+    echo "   You can run it later with: cd $PROJECT_ROOT/api && .venv/bin/python3 scripts/optimize-images.py --all"
 fi
 echo ""
 
@@ -98,9 +116,9 @@ echo "6. API runs on port 3002; nginx proxies /api/ and /uploads/."
 echo "7. Uploads path on VPS: $PROJECT_ROOT/uploads (nginx alias: /root/projects/wedding_rsvp/uploads)"
 echo ""
 echo "--- Optimization (runs automatically after upload; optional manual/cron) ---"
-echo "8. Manual (new only): cd $PROJECT_ROOT/api && python3 scripts/optimize-images.py --new"
+echo "8. Manual (new only): cd $PROJECT_ROOT/api && .venv/bin/python3 scripts/optimize-images.py --new"
 echo "9. Cron (VPS):        crontab -e"
-echo "   Add: 0 * * * * cd $PROJECT_ROOT/api && python3 scripts/optimize-images.py --new"
+echo "   Add: 0 * * * * cd $PROJECT_ROOT/api && .venv/bin/python3 scripts/optimize-images.py --new"
 echo ""
 echo "📚 For more information, see:"
 echo "   api/scripts/IMAGE_OPTIMIZATION_GUIDE.md"
