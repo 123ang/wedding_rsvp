@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { API_BASE_URL } from '../config/api';
 import './BackgroundMusic.css';
 
@@ -29,6 +29,10 @@ const BackgroundMusic = forwardRef((props, ref) => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [musicSources, setMusicSources] = useState(FALLBACK_SONGS);
   const [currentTrack, setCurrentTrack] = useState(0);
+  const sourcesRef = useRef(musicSources);
+  const trackRef = useRef(0);
+  sourcesRef.current = musicSources;
+  trackRef.current = currentTrack;
 
   // Load playlist from /uploads/song (GET /api/songs). Add new songs by uploading to that folder.
   useEffect(() => {
@@ -217,22 +221,31 @@ const BackgroundMusic = forwardRef((props, ref) => {
   };
 
   const nextTrack = () => {
-    if (musicSources.length === 0) return;
+    const sources = sourcesRef.current;
+    if (sources.length === 0) return;
     setHasUserInteracted(true);
     const audio = document.getElementById('background-music');
     if (audio) {
-      const nextIndex = (currentTrack + 1) % musicSources.length;
+      const nextIndex = (trackRef.current + 1) % sources.length;
+      trackRef.current = nextIndex;
       setCurrentTrack(nextIndex);
-      audio.src = musicSources[nextIndex];
+      audio.src = sources[nextIndex];
       if (isPlaying) {
-        audio.play();
+        audio.play().catch(() => {});
       }
     }
   };
 
   const handleEnded = () => {
-    // Auto-play next track when current one ends
-    nextTrack();
+    const sources = sourcesRef.current;
+    if (sources.length === 0) return;
+    const audio = document.getElementById('background-music');
+    if (!audio) return;
+    const nextIndex = (trackRef.current + 1) % sources.length;
+    trackRef.current = nextIndex;
+    setCurrentTrack(nextIndex);
+    audio.src = sources[nextIndex];
+    audio.play().catch(() => {});
   };
 
   return (

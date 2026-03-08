@@ -465,10 +465,8 @@ const GalleryPage = () => {
     setSlideshowActive(true);
     setSlideshowPaused(false);
     
-    // If resuming, keep current index, otherwise start from beginning or current photo
+    // Open lightbox; keep current index so closing and reopening continues from where it stopped
     if (!open) {
-      setSlideshowIndex(0);
-      setCurrentIndex(0);
       setOpen(true);
     }
 
