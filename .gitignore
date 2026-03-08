@@ -32,4 +32,19 @@ yarn-debug.log*
 # Testing
 coverage/
 
+# Uploads folder (user content; only structure/placeholders tracked below)
+uploads/
 uploads/*
+# Allow uploads/song dir (songs loaded from API; add MP3s on server)
+!uploads/song/
+!uploads/song/.gitkeep
+!uploads/song/README.md
+# Allow static bride/groom assets (placeholder + dirs) to be committed
+!uploads/photos/
+!uploads/photos/*
+!uploads/photos/bride/
+!uploads/photos/bride/*
+!uploads/photos/groom/
+!uploads/photos/groom/*
+!uploads/photos/couple/
+!uploads/photos/couple/*

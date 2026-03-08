@@ -1,22 +1,47 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 import './BackgroundMusic.css';
+
+// Fallback when uploads/song is empty or API unavailable (public/music/)
+const FALLBACK_SONGS = [
+  '/music/wedding_music.mp3',
+  '/music/wedding_music_2.mp3',
+  '/music/wedding-music-1.mp3',
+  '/music/wedding-music-2.mp3',
+  '/music/romantic-piano.mp3',
+  '/music/On-The-Shore.mp3',
+  '/music/One-and-one.mp3',
+  '/music/Sea-house.mp3',
+  '/music/Seaside-Ale.mp3',
+  '/music/Something-you-want.mp3',
+  '/music/Summer-Kids.mp3',
+  '/music/Summer-Nude-OST-Natsu-no-yoruni.mp3',
+  '/music/Sunlight.mp3',
+  '/music/Sunset-Beach.mp3',
+  '/music/To-Be-Continued.mp3',
+  '/music/Triangle-Love.mp3'
+];
 
 const BackgroundMusic = forwardRef((props, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.2);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-
-  // Try these in order; first one that exists will play. Add your file to website/public/music/
-  const musicSources = [
-    '/music/wedding_music.mp3',
-    '/music/wedding_music_2.mp3',
-    '/music/wedding-music-1.mp3',
-    '/music/wedding-music-2.mp3',
-    '/music/romantic-piano.mp3'
-  ];
-
+  const [musicSources, setMusicSources] = useState(FALLBACK_SONGS);
   const [currentTrack, setCurrentTrack] = useState(0);
+
+  // Load playlist from /uploads/song (GET /api/songs). Add new songs by uploading to that folder.
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/songs`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.songs && data.songs.length > 0) {
+          setMusicSources(data.songs);
+          setCurrentTrack(0);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -192,6 +217,7 @@ const BackgroundMusic = forwardRef((props, ref) => {
   };
 
   const nextTrack = () => {
+    if (musicSources.length === 0) return;
     setHasUserInteracted(true);
     const audio = document.getElementById('background-music');
     if (audio) {
@@ -213,8 +239,9 @@ const BackgroundMusic = forwardRef((props, ref) => {
     <div className="background-music">
         <audio
           id="background-music"
-          src={musicSources[currentTrack]}
-          loop={true}
+          src={musicSources.length > 0 ? musicSources[currentTrack] : undefined}
+          loop={false}
+          onEnded={handleEnded}
           preload="auto"
           playsInline
         />

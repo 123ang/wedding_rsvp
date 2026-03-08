@@ -11,6 +11,7 @@ const collectionsRoutes = require('./routes/collections');
 const videosRoutes = require('./routes/videos');
 const seatsRoutes = require('./routes/seats');
 const timelineRoutes = require('./routes/timeline');
+const songsRoutes = require('./routes/songs');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -39,6 +40,7 @@ app.use('/api/collections', collectionsRoutes);
 app.use('/api/videos', videosRoutes);
 app.use('/api/seats', seatsRoutes);
 app.use('/api/timeline', timelineRoutes);
+app.use('/api/songs', songsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
