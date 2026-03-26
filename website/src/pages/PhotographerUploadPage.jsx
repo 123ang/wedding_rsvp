@@ -407,7 +407,7 @@ const PhotographerUploadPage = () => {
     <div className="photographer-upload-page">
       <div className="photographer-header">
         <div>
-          <h1>ðŸ“¸ Photographer Portal</h1>
+          <h1>Photographer Portal</h1>
           <p className="photographer-email">Logged in as: {auth.email}</p>
         </div>
         <button onClick={handleLogout} className="photographer-logout-btn">
@@ -423,15 +423,11 @@ const PhotographerUploadPage = () => {
         <button
           className={`photographer-tab ${activeTab === 'upload' ? 'active' : ''}`}
           onClick={() => setActiveTab('upload')}
-        >
-          ðŸ“¤ Upload Photos
-        </button>
+        >Upload Photos</button>
         <button
           className={`photographer-tab ${activeTab === 'manage' ? 'active' : ''}`}
           onClick={() => setActiveTab('manage')}
-        >
-          ðŸ–¼ï¸ Manage Photos
-        </button>
+        >Manage Photos</button>
       </div>
 
       {/* Upload Tab */}
@@ -452,9 +448,7 @@ const PhotographerUploadPage = () => {
               onClick={() => fileInputRef.current?.click()}
               className="select-files-btn"
               disabled={uploading}
-            >
-              ðŸ“ Choose Photos
-            </button>
+            >Choose Photos</button>
           </div>
 
           {selectedFiles.length > 0 && (
@@ -509,13 +503,11 @@ const PhotographerUploadPage = () => {
                         )}
                         
                         {progress.status === 'success' && (
-                          <div className="upload-status success">âœ“ Uploaded</div>
+                          <div className="upload-status success">Uploaded</div>
                         )}
                         
                         {progress.status === 'error' && (
-                          <div className="upload-status error" title={progress.error || 'Upload failed'}>
-                            âœ• Failed
-                          </div>
+                          <div className="upload-status error" title={progress.error || 'Upload failed'}>Failed</div>
                         )}
                         
                         {!uploading && progress.status === 'pending' && (
@@ -523,7 +515,7 @@ const PhotographerUploadPage = () => {
                             onClick={() => removeFile(index)}
                             className="remove-file-btn"
                           >
-                            âœ•
+                            X
                           </button>
                         )}
                       </div>
@@ -539,7 +531,7 @@ const PhotographerUploadPage = () => {
                   disabled={uploading}
                   style={{ flex: 1 }}
                 >
-                  {uploading ? `â³ Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `ðŸ“¤ Upload ${selectedFiles.length} Photo(s)`}
+                  {uploading ? `Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `Upload ${selectedFiles.length} Photo(s)`}
                 </button>
                 {uploading && (
                   <button
@@ -550,9 +542,7 @@ const PhotographerUploadPage = () => {
                       background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
                       minWidth: '120px'
                     }}
-                  >
-                    âŒ Cancel
-                  </button>
+                  >Cancel</button>
                 )}
               </div>
             </>
@@ -560,7 +550,7 @@ const PhotographerUploadPage = () => {
 
           {/* ZIP Upload Section */}
           <div className="zip-upload-section" style={{ marginTop: '3rem', paddingTop: '3rem', borderTop: '2px solid #e0e0e0' }}>
-            <h2>ðŸ“¦ Upload ZIP File</h2>
+            <h2>Upload ZIP File</h2>
             <p style={{ marginBottom: '1rem', color: '#666' }}>
               Upload a ZIP file containing multiple images. All images will be extracted and uploaded automatically.
             </p>
@@ -579,9 +569,7 @@ const PhotographerUploadPage = () => {
                 onClick={() => zipInputRef.current?.click()}
                 className="select-files-btn"
                 disabled={uploadingZip || uploading}
-              >
-                ðŸ“¦ Choose ZIP File
-              </button>
+              >Choose ZIP File</button>
             </div>
 
             {zipFile && (
@@ -616,9 +604,7 @@ const PhotographerUploadPage = () => {
                     className="remove-file-btn"
                     disabled={uploadingZip}
                     style={{ marginTop: '0.5rem' }}
-                  >
-                    âœ• Remove
-                  </button>
+                  >Remove</button>
                 </div>
 
                 {/* ZIP Upload Progress */}
@@ -654,7 +640,7 @@ const PhotographerUploadPage = () => {
                   disabled={uploadingZip || uploading}
                   style={{ marginTop: '1rem', width: '100%' }}
                 >
-                  {uploadingZip ? `â³ Processing ZIP... ${zipProgress}%` : `ðŸ“¤ Upload ZIP File`}
+                  {uploadingZip ? `Processing ZIP... ${zipProgress}%` : `Upload ZIP File`}
                 </button>
               </>
             )}
@@ -691,9 +677,7 @@ const PhotographerUploadPage = () => {
                   <button
                     onClick={() => handleDeletePhoto(photo.id, photo.image_url)}
                     className="delete-photo-btn"
-                  >
-                    ðŸ—‘ï¸ Delete
-                  </button>
+                  >Delete</button>
                 </div>
               ))}
             </div>
@@ -720,12 +704,12 @@ const PhotographerUploadPage = () => {
         <div className="zip-dialog-overlay" onClick={() => setShowZipDialog(false)}>
           <div className="zip-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="zip-dialog-header">
-              <h2>âœ… ZIP Upload Complete!</h2>
+              <h2>ZIP Upload Complete!</h2>
               <button 
                 className="zip-dialog-close"
                 onClick={() => setShowZipDialog(false)}
               >
-                âœ•
+                X
               </button>
             </div>
             <div className="zip-dialog-content">
@@ -780,4 +764,5 @@ const PhotographerUploadPage = () => {
 };
 
 export default PhotographerUploadPage;
+
 

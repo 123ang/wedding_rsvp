@@ -1,4 +1,4 @@
-﻿{
+{
   "navigation": {
     "title": "Our Wedding",
     "brideWedding": "Bride's Wedding",
@@ -87,7 +87,7 @@
   },
   "photos": {
     "brideAlt": "Beautiful bride photo",
-    "groomAlt": "Handsome groom photo", 
+    "groomAlt": "Handsome groom photo",
     "coupleAlt": "Beautiful couple photo",
     "brideCaption": "Bride Photo",
     "groomCaption": "Groom Photo",
@@ -107,15 +107,12 @@
   },
   "language": {
     "switch": "Switch Language",
-    "chinese": "ä¸­æ–‡",
-    "english": "English"
+    "chinese": "中文",
+    "english": "English",
+    "japanese": "日本語"
   },
   "downloads": {
     "brideInvitation": "Download Bride Invitation (PDF)",
     "groomInvitation": "Download Groom Invitation (PDF)"
   }
 }
-
-
-
-
