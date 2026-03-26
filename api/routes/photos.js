@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Photo Routes
  * Handles photo upload, retrieval, and management
  */
@@ -387,9 +387,9 @@ router.post('/upload', authenticateAdminOrPhotographer, upload.single('photo'), 
       return res.status(400).json({ success: false, message: 'Category is required' });
     }
 
-    const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner'];
+    const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner', 'rom'];
     if (!validCategories.includes(category)) {
-      return res.status(400).json({ success: false, message: 'Invalid category. Must be one of: pre-wedding, brides-dinner, morning-wedding, grooms-dinner' });
+      return res.status(400).json({ success: false, message: 'Invalid category. Must be one of: pre-wedding, brides-dinner, morning-wedding, grooms-dinner, rom' });
     }
 
     // Insert into photographer_photo table
@@ -474,13 +474,13 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
       return res.status(400).json({ success: false, message: 'Category is required' });
     }
 
-    const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner'];
+    const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner', 'rom'];
     if (!validCategories.includes(category)) {
       // Clean up uploaded ZIP file
       await fs.unlink(zipFilePath).catch(() => {});
       return res.status(400).json({ 
         success: false, 
-        message: 'Invalid category. Must be one of: pre-wedding, brides-dinner, morning-wedding, grooms-dinner' 
+        message: 'Invalid category. Must be one of: pre-wedding, brides-dinner, morning-wedding, grooms-dinner, rom' 
       });
     }
 
@@ -790,4 +790,5 @@ router.get('/tags/all', async (req, res) => {
 });
 
 module.exports = router;
+
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkAdminAuth, adminLogout } from '../services/api';
 import { API_BASE_URL } from '../config/api';
@@ -407,7 +407,7 @@ const PhotographerUploadPage = () => {
     <div className="photographer-upload-page">
       <div className="photographer-header">
         <div>
-          <h1>📸 Photographer Portal</h1>
+          <h1>ðŸ“¸ Photographer Portal</h1>
           <p className="photographer-email">Logged in as: {auth.email}</p>
         </div>
         <button onClick={handleLogout} className="photographer-logout-btn">
@@ -424,13 +424,13 @@ const PhotographerUploadPage = () => {
           className={`photographer-tab ${activeTab === 'upload' ? 'active' : ''}`}
           onClick={() => setActiveTab('upload')}
         >
-          📤 Upload Photos
+          ðŸ“¤ Upload Photos
         </button>
         <button
           className={`photographer-tab ${activeTab === 'manage' ? 'active' : ''}`}
           onClick={() => setActiveTab('manage')}
         >
-          🖼️ Manage Photos
+          ðŸ–¼ï¸ Manage Photos
         </button>
       </div>
 
@@ -453,7 +453,7 @@ const PhotographerUploadPage = () => {
               className="select-files-btn"
               disabled={uploading}
             >
-              📁 Choose Photos
+              ðŸ“ Choose Photos
             </button>
           </div>
 
@@ -472,6 +472,7 @@ const PhotographerUploadPage = () => {
                   <option value="brides-dinner">Bride's Dinner</option>
                   <option value="morning-wedding">Morning Wedding</option>
                   <option value="grooms-dinner">Groom's Dinner</option>
+                  <option value="rom">ROM</option>
                 </select>
               </div>
 
@@ -508,12 +509,12 @@ const PhotographerUploadPage = () => {
                         )}
                         
                         {progress.status === 'success' && (
-                          <div className="upload-status success">✓ Uploaded</div>
+                          <div className="upload-status success">âœ“ Uploaded</div>
                         )}
                         
                         {progress.status === 'error' && (
                           <div className="upload-status error" title={progress.error || 'Upload failed'}>
-                            ✕ Failed
+                            âœ• Failed
                           </div>
                         )}
                         
@@ -522,7 +523,7 @@ const PhotographerUploadPage = () => {
                             onClick={() => removeFile(index)}
                             className="remove-file-btn"
                           >
-                            ✕
+                            âœ•
                           </button>
                         )}
                       </div>
@@ -538,7 +539,7 @@ const PhotographerUploadPage = () => {
                   disabled={uploading}
                   style={{ flex: 1 }}
                 >
-                  {uploading ? `⏳ Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `📤 Upload ${selectedFiles.length} Photo(s)`}
+                  {uploading ? `â³ Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `ðŸ“¤ Upload ${selectedFiles.length} Photo(s)`}
                 </button>
                 {uploading && (
                   <button
@@ -550,7 +551,7 @@ const PhotographerUploadPage = () => {
                       minWidth: '120px'
                     }}
                   >
-                    ❌ Cancel
+                    âŒ Cancel
                   </button>
                 )}
               </div>
@@ -559,7 +560,7 @@ const PhotographerUploadPage = () => {
 
           {/* ZIP Upload Section */}
           <div className="zip-upload-section" style={{ marginTop: '3rem', paddingTop: '3rem', borderTop: '2px solid #e0e0e0' }}>
-            <h2>📦 Upload ZIP File</h2>
+            <h2>ðŸ“¦ Upload ZIP File</h2>
             <p style={{ marginBottom: '1rem', color: '#666' }}>
               Upload a ZIP file containing multiple images. All images will be extracted and uploaded automatically.
             </p>
@@ -579,7 +580,7 @@ const PhotographerUploadPage = () => {
                 className="select-files-btn"
                 disabled={uploadingZip || uploading}
               >
-                📦 Choose ZIP File
+                ðŸ“¦ Choose ZIP File
               </button>
             </div>
 
@@ -598,6 +599,7 @@ const PhotographerUploadPage = () => {
                     <option value="brides-dinner">Bride's Dinner</option>
                     <option value="morning-wedding">Morning Wedding</option>
                     <option value="grooms-dinner">Groom's Dinner</option>
+                  <option value="rom">ROM</option>
                   </select>
                 </div>
 
@@ -615,7 +617,7 @@ const PhotographerUploadPage = () => {
                     disabled={uploadingZip}
                     style={{ marginTop: '0.5rem' }}
                   >
-                    ✕ Remove
+                    âœ• Remove
                   </button>
                 </div>
 
@@ -652,7 +654,7 @@ const PhotographerUploadPage = () => {
                   disabled={uploadingZip || uploading}
                   style={{ marginTop: '1rem', width: '100%' }}
                 >
-                  {uploadingZip ? `⏳ Processing ZIP... ${zipProgress}%` : `📤 Upload ZIP File`}
+                  {uploadingZip ? `â³ Processing ZIP... ${zipProgress}%` : `ðŸ“¤ Upload ZIP File`}
                 </button>
               </>
             )}
@@ -690,7 +692,7 @@ const PhotographerUploadPage = () => {
                     onClick={() => handleDeletePhoto(photo.id, photo.image_url)}
                     className="delete-photo-btn"
                   >
-                    🗑️ Delete
+                    ðŸ—‘ï¸ Delete
                   </button>
                 </div>
               ))}
@@ -705,7 +707,7 @@ const PhotographerUploadPage = () => {
           <li>Upload photos individually (no limit) or upload a ZIP file containing multiple images</li>
           <li>Individual photos are uploaded one at a time (sequential upload)</li>
           <li>ZIP files will be automatically extracted and all images will be uploaded</li>
-          <li>Choose category: Pre-Wedding, Bride's Dinner, Morning Wedding, or Groom's Dinner</li>
+          <li>Choose category: Pre-Wedding, Bride's Dinner, Morning Wedding, Groom's Dinner, or ROM</li>
           <li>Supported formats: JPG, PNG, GIF, WebP</li>
           <li>Maximum file size: 1GB per photo, 5GB per ZIP file</li>
           <li>Photos will appear in the wedding photo gallery according to their category</li>
@@ -718,12 +720,12 @@ const PhotographerUploadPage = () => {
         <div className="zip-dialog-overlay" onClick={() => setShowZipDialog(false)}>
           <div className="zip-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="zip-dialog-header">
-              <h2>✅ ZIP Upload Complete!</h2>
+              <h2>âœ… ZIP Upload Complete!</h2>
               <button 
                 className="zip-dialog-close"
                 onClick={() => setShowZipDialog(false)}
               >
-                ✕
+                âœ•
               </button>
             </div>
             <div className="zip-dialog-content">
@@ -778,3 +780,4 @@ const PhotographerUploadPage = () => {
 };
 
 export default PhotographerUploadPage;
+

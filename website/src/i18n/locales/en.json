@@ -1,4 +1,4 @@
-{
+﻿{
   "navigation": {
     "title": "Our Wedding",
     "brideWedding": "Bride's Wedding",
@@ -72,7 +72,8 @@
       "preWedding": "Pre-Wedding",
       "bridesDinner": "Bride's Dinner",
       "morningWedding": "Morning Wedding",
-      "groomsDinner": "Groom's Dinner"
+      "groomsDinner": "Groom's Dinner",
+      "rom": "ROM"
     },
     "slideshow": "Slideshow",
     "stopSlideshow": "Stop Slideshow",
@@ -106,7 +107,7 @@
   },
   "language": {
     "switch": "Switch Language",
-    "chinese": "中文",
+    "chinese": "ä¸­æ–‡",
     "english": "English"
   },
   "downloads": {
@@ -114,3 +115,7 @@
     "groomInvitation": "Download Groom Invitation (PDF)"
   }
 }
+
+
+
+

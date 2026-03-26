@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+﻿import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import Lightbox from 'yet-another-react-lightbox';
@@ -44,7 +44,7 @@ const GalleryPage = () => {
   // Sync activeTab with URL category
   useEffect(() => {
     if (urlCategory && urlCategory !== activeTab) {
-      const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner'];
+      const validCategories = ['pre-wedding', 'brides-dinner', 'morning-wedding', 'grooms-dinner', 'rom'];
       if (validCategories.includes(urlCategory)) {
         setActiveTab(urlCategory);
       } else {
@@ -59,7 +59,8 @@ const GalleryPage = () => {
     'pre-wedding': ['pre-wedding', 'pre wedding', 'prewedding'],
     'brides-dinner': ['bride\'s dinner', 'brides dinner', 'bride dinner', 'bride-dinner'],
     'morning-wedding': ['morning wedding', 'morning-wedding', 'ceremony', 'wedding ceremony'],
-    'grooms-dinner': ['groom\'s dinner', 'grooms dinner', 'groom dinner', 'groom-dinner']
+    'grooms-dinner': ['groom\'s dinner', 'grooms dinner', 'groom dinner', 'groom-dinner'],
+    'rom': ['rom', 'registration of marriage']
   };
 
   // Initialize Cache API
@@ -218,7 +219,8 @@ const GalleryPage = () => {
       'pre-wedding': 'pre-wedding',
       'brides-dinner': 'brides-dinner',
       'morning-wedding': 'morning-wedding',
-      'grooms-dinner': 'grooms-dinner'
+      'grooms-dinner': 'grooms-dinner',
+      'rom': 'rom'
     };
     const category = categoryMap[activeTab] || null;
     fetchPhotos(currentPage, category);
@@ -298,7 +300,8 @@ const GalleryPage = () => {
         'pre-wedding': 'pre-wedding',
         'brides-dinner': 'brides-dinner',
         'morning-wedding': 'morning-wedding',
-        'grooms-dinner': 'grooms-dinner'
+        'grooms-dinner': 'grooms-dinner',
+      'rom': 'rom'
       };
       const category = categoryMap[activeTab] || null;
       
@@ -454,7 +457,8 @@ const GalleryPage = () => {
         'pre-wedding': 'pre-wedding',
         'brides-dinner': 'brides-dinner',
         'morning-wedding': 'morning-wedding',
-        'grooms-dinner': 'grooms-dinner'
+        'grooms-dinner': 'grooms-dinner',
+      'rom': 'rom'
       };
       const category = categoryMap[activeTab] || null;
       slideshowPhotos = await fetchAllPhotosForSlideshow(category);
@@ -608,6 +612,12 @@ const GalleryPage = () => {
             >
               {t('gallery.categories.groomsDinner')}
             </button>
+            <button
+              className={`gallery-tab ${activeTab === 'rom' ? 'active' : ''}`}
+              onClick={() => navigate('/gallery/rom')}
+            >
+              {t('gallery.categories.rom')}
+            </button>
           </div>
           {!loading && (
             <div className="gallery-action-buttons">
@@ -617,7 +627,7 @@ const GalleryPage = () => {
                 title="Start Fullscreen Slideshow"
                 disabled={filteredPhotos.length === 0}
               >
-                ▶️ {t('gallery.slideshow')}
+                Ã¢â€“Â¶Ã¯Â¸Â {t('gallery.slideshow')}
               </button>
               <button
                 onClick={handleDownloadAll}
@@ -625,7 +635,7 @@ const GalleryPage = () => {
                 title={filteredPhotos.length === 0 ? t('gallery.noPhotosToDownload') : downloadingZip ? t('gallery.creatingZip') : t('gallery.downloadAllTitle', { count: totalPhotos })}
                 disabled={filteredPhotos.length === 0 || downloadingZip}
               >
-                {downloadingZip ? `⏳ ${t('gallery.creatingZip')}` : `⬇️ ${t('gallery.downloadAll')} (${totalPhotos} ${t('gallery.photos')})`}
+                {downloadingZip ? `Ã¢ÂÂ³ ${t('gallery.creatingZip')}` : `Ã¢Â¬â€¡Ã¯Â¸Â ${t('gallery.downloadAll')} (${totalPhotos} ${t('gallery.photos')})`}
               </button>
             </div>
           )}
@@ -670,7 +680,7 @@ const GalleryPage = () => {
                   </div>
                 )}
                 <div className="photo-overlay">
-                  <span className="view-icon">🔍</span>
+                  <span className="view-icon">Ã°Å¸â€Â</span>
                   <span className="view-text">{t('gallery.viewPhoto')}</span>
                 </div>
                 <button
@@ -678,7 +688,7 @@ const GalleryPage = () => {
                   onClick={(e) => handleDownloadPhoto(e, photo, index)}
                   title="Download Photo"
                 >
-                  ⬇️
+                  Ã¢Â¬â€¡Ã¯Â¸Â
                 </button>
               </div>
             ))}
@@ -693,7 +703,7 @@ const GalleryPage = () => {
               className="pagination-btn"
               disabled={currentPage === 1}
             >
-              ← Previous
+              Ã¢â€ Â Previous
             </button>
             
             <div className="pagination-info">
@@ -720,7 +730,7 @@ const GalleryPage = () => {
               className="pagination-btn"
               disabled={currentPage === totalPages}
             >
-              Next →
+              Next Ã¢â€ â€™
             </button>
           </div>
         )}
@@ -754,15 +764,15 @@ const GalleryPage = () => {
           <div className="slideshow-controls">
             {slideshowPaused ? (
               <button onClick={resumeSlideshow} className="slideshow-control-btn">
-                ▶️ {t('gallery.resumeSlideshow') || 'Resume'}
+                Ã¢â€“Â¶Ã¯Â¸Â {t('gallery.resumeSlideshow') || 'Resume'}
               </button>
             ) : (
               <button onClick={pauseSlideshow} className="slideshow-control-btn">
-                ⏸️ {t('gallery.pauseSlideshow') || 'Pause'}
+                Ã¢ÂÂ¸Ã¯Â¸Â {t('gallery.pauseSlideshow') || 'Pause'}
               </button>
             )}
             <button onClick={stopSlideshow} className="slideshow-stop-btn">
-              ⏹ {t('gallery.stopSlideshow')}
+              Ã¢ÂÂ¹ {t('gallery.stopSlideshow')}
             </button>
           </div>
         )}
@@ -772,4 +782,8 @@ const GalleryPage = () => {
 };
 
 export default GalleryPage;
+
+
+
+
 
