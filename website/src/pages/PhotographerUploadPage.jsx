@@ -472,7 +472,7 @@ const PhotographerUploadPage = () => {
                   <option value="brides-dinner">Bride's Dinner</option>
                   <option value="morning-wedding">Morning Wedding</option>
                   <option value="grooms-dinner">Groom's Dinner</option>
-                  <option value="rom">ROM</option>
+                    <option value="rom">ROM</option>
                 </select>
               </div>
 
@@ -599,7 +599,7 @@ const PhotographerUploadPage = () => {
                     <option value="brides-dinner">Bride's Dinner</option>
                     <option value="morning-wedding">Morning Wedding</option>
                     <option value="grooms-dinner">Groom's Dinner</option>
-                  <option value="rom">ROM</option>
+                    <option value="rom">ROM</option>
                   </select>
                 </div>
 
