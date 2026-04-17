@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkAdminAuth, adminLogout } from '../services/api';
 import { API_BASE_URL } from '../config/api';
@@ -524,24 +524,18 @@ const PhotographerUploadPage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+              <div className="upload-action-row">
                 <button
                   onClick={handleUpload}
-                  className="upload-btn"
+                  className="upload-btn upload-btn-primary"
                   disabled={uploading}
-                  style={{ flex: 1 }}
                 >
                   {uploading ? `Uploading... (${Object.values(uploadProgress).filter(p => p.status === 'success').length}/${selectedFiles.length})` : `Upload ${selectedFiles.length} Photo(s)`}
                 </button>
                 {uploading && (
                   <button
                     onClick={handleCancelUpload}
-                    className="upload-btn"
-                    style={{ 
-                      flex: '0 0 auto', 
-                      background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-                      minWidth: '120px'
-                    }}
+                    className="upload-btn upload-btn-cancel"
                   >Cancel</button>
                 )}
               </div>
