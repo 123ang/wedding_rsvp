@@ -29,10 +29,7 @@ const BackgroundMusic = forwardRef((props, ref) => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [musicSources, setMusicSources] = useState(FALLBACK_SONGS);
   const [currentTrack, setCurrentTrack] = useState(0);
-  const sourcesRef = useRef(musicSources);
-  const trackRef = useRef(0);
-  sourcesRef.current = musicSources;
-  trackRef.current = currentTrack;
+  const audioRef = useRef(null);
 
   // Load playlist from /uploads/song (GET /api/songs). Add new songs by uploading to that folder.
   useEffect(() => {
@@ -81,6 +78,17 @@ const BackgroundMusic = forwardRef((props, ref) => {
       audio.muted = isMuted;
     }
   }, [volume, isMuted]);
+
+  // When track index changes, continue playback seamlessly if already playing.
+  useEffect(() => {
+    const audio = audioRef.current || document.getElementById('background-music');
+    if (!audio || musicSources.length === 0) return;
+    if (isPlaying) {
+      audio.play().catch(() => {
+        setIsPlaying(false);
+      });
+    }
+  }, [currentTrack, musicSources, isPlaying]);
 
   // Listen for global enable-music event from envelope intros
   useEffect(() => {
@@ -221,36 +229,20 @@ const BackgroundMusic = forwardRef((props, ref) => {
   };
 
   const nextTrack = () => {
-    const sources = sourcesRef.current;
-    if (sources.length === 0) return;
+    if (musicSources.length === 0) return;
     setHasUserInteracted(true);
-    const audio = document.getElementById('background-music');
-    if (audio) {
-      const nextIndex = (trackRef.current + 1) % sources.length;
-      trackRef.current = nextIndex;
-      setCurrentTrack(nextIndex);
-      audio.src = sources[nextIndex];
-      if (isPlaying) {
-        audio.play().catch(() => {});
-      }
-    }
+    setCurrentTrack((prev) => (prev + 1) % musicSources.length);
   };
 
   const handleEnded = () => {
-    const sources = sourcesRef.current;
-    if (sources.length === 0) return;
-    const audio = document.getElementById('background-music');
-    if (!audio) return;
-    const nextIndex = (trackRef.current + 1) % sources.length;
-    trackRef.current = nextIndex;
-    setCurrentTrack(nextIndex);
-    audio.src = sources[nextIndex];
-    audio.play().catch(() => {});
+    if (musicSources.length === 0) return;
+    setCurrentTrack((prev) => (prev + 1) % musicSources.length);
   };
 
   return (
     <div className="background-music">
         <audio
+          ref={audioRef}
           id="background-music"
           src={musicSources.length > 0 ? musicSources[currentTrack] : undefined}
           loop={false}

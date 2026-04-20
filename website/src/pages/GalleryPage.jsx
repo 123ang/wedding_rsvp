@@ -627,7 +627,7 @@ const GalleryPage = () => {
                 title="Start Fullscreen Slideshow"
                 disabled={filteredPhotos.length === 0}
               >
-                Ã¢â€“Â¶Ã¯Â¸Â {t('gallery.slideshow')}
+                {t('gallery.slideshow')}
               </button>
               <button
                 onClick={handleDownloadAll}
@@ -635,7 +635,7 @@ const GalleryPage = () => {
                 title={filteredPhotos.length === 0 ? t('gallery.noPhotosToDownload') : downloadingZip ? t('gallery.creatingZip') : t('gallery.downloadAllTitle', { count: totalPhotos })}
                 disabled={filteredPhotos.length === 0 || downloadingZip}
               >
-                {downloadingZip ? `Ã¢ÂÂ³ ${t('gallery.creatingZip')}` : `Ã¢Â¬â€¡Ã¯Â¸Â ${t('gallery.downloadAll')} (${totalPhotos} ${t('gallery.photos')})`}
+                {downloadingZip ? t('gallery.creatingZip') : `${t('gallery.downloadAll')} (${totalPhotos} ${t('gallery.photos')})`}
               </button>
             </div>
           )}
@@ -680,7 +680,7 @@ const GalleryPage = () => {
                   </div>
                 )}
                 <div className="photo-overlay">
-                  <span className="view-icon">Ã°Å¸â€Â</span>
+                  <span className="view-icon">View</span>
                   <span className="view-text">{t('gallery.viewPhoto')}</span>
                 </div>
                 <button
@@ -688,7 +688,7 @@ const GalleryPage = () => {
                   onClick={(e) => handleDownloadPhoto(e, photo, index)}
                   title="Download Photo"
                 >
-                  Ã¢Â¬â€¡Ã¯Â¸Â
+                  Download
                 </button>
               </div>
             ))}
@@ -703,7 +703,7 @@ const GalleryPage = () => {
               className="pagination-btn"
               disabled={currentPage === 1}
             >
-              Ã¢â€ Â Previous
+              &lt; Previous
             </button>
             
             <div className="pagination-info">
@@ -730,7 +730,7 @@ const GalleryPage = () => {
               className="pagination-btn"
               disabled={currentPage === totalPages}
             >
-              Next Ã¢â€ â€™
+              Next &gt;
             </button>
           </div>
         )}
@@ -764,15 +764,15 @@ const GalleryPage = () => {
           <div className="slideshow-controls">
             {slideshowPaused ? (
               <button onClick={resumeSlideshow} className="slideshow-control-btn">
-                Ã¢â€“Â¶Ã¯Â¸Â {t('gallery.resumeSlideshow') || 'Resume'}
+                {t('gallery.resumeSlideshow') || 'Resume'}
               </button>
             ) : (
               <button onClick={pauseSlideshow} className="slideshow-control-btn">
-                Ã¢ÂÂ¸Ã¯Â¸Â {t('gallery.pauseSlideshow') || 'Pause'}
+                {t('gallery.pauseSlideshow') || 'Pause'}
               </button>
             )}
             <button onClick={stopSlideshow} className="slideshow-stop-btn">
-              Ã¢ÂÂ¹ {t('gallery.stopSlideshow')}
+              {t('gallery.stopSlideshow')}
             </button>
           </div>
         )}
