@@ -23,7 +23,7 @@ Default configuration:
 - User: `root`
 - Password: (empty)
 - Database Name: `wedding_rsvp`
-- Port: `3001`
+- Port: **`3002`** (matches nginx `proxy_pass` for jsang-psong-wedding.com)
 
 ### 3. Start Server
 
