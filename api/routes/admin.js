@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-const { authenticateAdmin, requireAdmin } = require('../middleware/auth');
+const { authenticateAdmin, requireAdmin, signAdminToken } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 
 // Admin Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         message: "Email and password are required.",
         success: false
@@ -18,8 +19,8 @@ router.post('/login', async (req, res) => {
 
     // Get user from database (including role)
     const [users] = await pool.execute(
-      'SELECT id, email, password, role FROM admin_users WHERE email = ? LIMIT 1',
-      [email]
+      'SELECT id, email, password, role FROM admin_users WHERE LOWER(email) = ? LIMIT 1',
+      [normalizedEmail]
     );
 
     if (users.length === 0) {
@@ -30,27 +31,29 @@ router.post('/login', async (req, res) => {
     }
 
     const user = users[0];
+    const passwordHash = String(user.password || '');
+    const isBcryptHash = passwordHash.startsWith('$2a$') || passwordHash.startsWith('$2b$') || passwordHash.startsWith('$2y$');
+    const passwordMatches = isBcryptHash ? await bcrypt.compare(password, passwordHash) : false;
 
-    // Verify password (simple comparison for demo, in production use bcrypt)
-    // For now, checking against specific credentials
-    if (
-      (email === 'angjinsheng@gmail.com' && password === '920214') ||
-      (email === 'psong32@hotmail.com' && password === '921119') ||
-      (email === 'jasonang1668@gmail.com' && password === '123456')
-    ) {
-      res.json({
-        message: "Login successful.",
-        success: true,
-        email: user.email,
-        id: user.id,
-        role: user.role || 'admin' // Default to admin if role is null
-      });
-    } else {
-      res.status(401).json({
+    if (!passwordMatches) {
+      return res.status(401).json({
         message: "Invalid credentials.",
         success: false
       });
     }
+
+    const role = user.role || 'admin';
+    const token = signAdminToken({ ...user, role });
+
+    res.json({
+      message: "Login successful.",
+      success: true,
+      email: user.email,
+      id: user.id,
+      role,
+      token,
+      token_type: 'Bearer'
+    });
   } catch (error) {
     console.error('Admin login error:', error);
     res.status(500).json({
@@ -65,12 +68,13 @@ router.get('/check-auth', authenticateAdmin, (req, res) => {
   res.json({
     success: true,
     email: req.admin.email,
-    id: req.admin.id
+    id: req.admin.id,
+    role: req.admin.role
   });
 });
 
 // Get All RSVPs (Admin Only)
-router.get('/rsvps', authenticateAdmin, async (req, res) => {
+router.get('/rsvps', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const [rsvps] = await pool.execute(
       `SELECT wedding_type as type, id, name, email, phone, attending, 
@@ -125,7 +129,7 @@ router.get('/rsvps', authenticateAdmin, async (req, res) => {
 });
 
 // Update Payment Amount (Admin Only)
-router.post('/update-payment', authenticateAdmin, async (req, res) => {
+router.post('/update-payment', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id, payment_amount } = req.body;
 
@@ -136,9 +140,17 @@ router.post('/update-payment', authenticateAdmin, async (req, res) => {
       });
     }
 
+    const amount = Number(payment_amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      return res.status(400).json({
+        message: "Payment amount must be a non-negative number.",
+        success: false
+      });
+    }
+
     await pool.execute(
       'UPDATE rsvps SET payment_amount = ? WHERE id = ?',
-      [parseFloat(payment_amount), id]
+      [amount, id]
     );
 
     res.json({
@@ -155,7 +167,7 @@ router.post('/update-payment', authenticateAdmin, async (req, res) => {
 });
 
 // Update Seat Table (Admin Only)
-router.post('/update-seat', authenticateAdmin, async (req, res) => {
+router.post('/update-seat', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id, seat_table } = req.body;
 
@@ -185,7 +197,7 @@ router.post('/update-seat', authenticateAdmin, async (req, res) => {
 });
 
 // Update Relationship (Admin Only)
-router.post('/update-relationship', authenticateAdmin, async (req, res) => {
+router.post('/update-relationship', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id, relationship } = req.body;
 
@@ -215,7 +227,7 @@ router.post('/update-relationship', authenticateAdmin, async (req, res) => {
 });
 
 // Update Remark (Admin Only)
-router.post('/update-remark', authenticateAdmin, async (req, res) => {
+router.post('/update-remark', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id, remark } = req.body;
 
@@ -245,7 +257,7 @@ router.post('/update-remark', authenticateAdmin, async (req, res) => {
 });
 
 // Get Unique Relationships (Admin Only)
-router.get('/relationships', authenticateAdmin, async (req, res) => {
+router.get('/relationships', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const [results] = await pool.execute(
       `SELECT DISTINCT relationship 
@@ -270,7 +282,7 @@ router.get('/relationships', authenticateAdmin, async (req, res) => {
 });
 
 // Get All Users (Admin Only) - for managing roles
-router.get('/users', authenticateAdmin, async (req, res) => {
+router.get('/users', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const [users] = await pool.execute(
       'SELECT id, email, role, created_at FROM admin_users ORDER BY created_at DESC'
@@ -295,7 +307,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 });
 
 // Update User Role (Admin Only)
-router.post('/update-role', authenticateAdmin, async (req, res) => {
+router.post('/update-role', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id, role } = req.body;
 
@@ -391,8 +403,7 @@ router.post('/create-user', authenticateAdmin, requireAdmin, async (req, res) =>
     console.error('Create user error:', error);
     res.status(500).json({
       message: "Failed to create user.",
-      success: false,
-      error: error.message
+      success: false
     });
   }
 });
@@ -435,8 +446,7 @@ router.delete('/users/:id', authenticateAdmin, requireAdmin, async (req, res) =>
     console.error('Delete user error:', error);
     res.status(500).json({
       message: "Failed to delete user.",
-      success: false,
-      error: error.message
+      success: false
     });
   }
 });
@@ -450,4 +460,3 @@ router.post('/logout', (req, res) => {
 });
 
 module.exports = router;
-

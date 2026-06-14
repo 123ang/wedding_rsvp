@@ -37,6 +37,16 @@ npm run dev
 npm start
 ```
 
+Before starting a deployment upgraded from an older schema, run:
+
+```bash
+mysql -u root -p wedding_rsvp < ../database/migration_secure_guest_media.sql
+```
+
+Set `PRIVATE_VIDEO_DIR` to a persistent directory outside the public web root.
+Uploaded videos are delivered through authenticated `/api/videos/:id/content`
+requests and must not be exposed by nginx as static files.
+
 ## API Endpoints
 
 ### RSVP Endpoints
@@ -55,11 +65,14 @@ npm start
 
 ## Authentication
 
-Admin endpoints require authentication headers:
-- `x-admin-email`: Admin email address
-- `x-admin-id`: Admin ID
+Admin endpoints require bearer token authentication:
+- `Authorization: Bearer <token-from-admin-login>`
 
-These are set by the frontend after successful login.
+This is set by the frontend after successful login.
+
+Verified guests receive a separate signed bearer token from
+`GET /api/verify-phone/:phone`. Guest-owned comments, likes, collections,
+uploads, and deletes derive identity from this token rather than request data.
 
 ## Database
 
@@ -68,4 +81,3 @@ The API connects to MySQL database `wedding_rsvp` with the following tables:
 - `rsvps` - RSVP submissions
 
 Make sure to import the database schema and data before running the API.
-

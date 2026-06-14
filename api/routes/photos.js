@@ -11,7 +11,17 @@ const fs = require('fs').promises;
 const { spawn } = require('child_process');
 const AdmZip = require('adm-zip');
 const pool = require('../config/database');
-const { authenticateAdminOrPhotographer } = require('../middleware/auth');
+const {
+  attachOptionalGuest,
+  authenticateAdminOrPhotographer,
+  authenticateGuestOrAdmin,
+} = require('../middleware/auth');
+const { sanitizeText } = require('../utils/security');
+
+function serializePhoto(photo) {
+  const { user_phone, ...publicPhoto } = photo;
+  return publicPhoto;
+}
 
 /**
  * Trigger image optimization in background (for VPS / photographer portal).
@@ -118,38 +128,9 @@ const uploadZip = multer({
   }
 });
 
-// Ensure photos table has user_phone column (for legacy databases)
-// Also ensure it's nullable to allow photographer uploads without phone
-const ensurePhotosHasUserPhone = async () => {
-  try {
-    await pool.execute('SELECT user_phone FROM photos LIMIT 1');
-    // Try to make it nullable (ignore error if already nullable or doesn't work)
-    try {
-      await pool.execute('ALTER TABLE photos MODIFY COLUMN user_phone VARCHAR(50) NULL');
-      console.log('[Photos] Made user_phone column nullable');
-    } catch (alterErr) {
-      // Ignore errors - column might already be nullable or alter might not be needed
-      console.log('[Photos] user_phone column nullability check skipped:', alterErr.message);
-    }
-  } catch (e) {
-    try {
-      await pool.execute(
-        'ALTER TABLE photos ADD COLUMN user_phone VARCHAR(50) NULL AFTER user_name'
-      );
-      console.log('[Photos] Added user_phone column to photos table');
-    } catch (err) {
-      console.error('[Photos] Failed to add user_phone column:', err.message || err);
-      // Let the original error surface so we notice it
-      throw err;
-    }
-  }
-};
-
 // Get all photos (paginated)
-router.get('/', async (req, res) => {
+router.get('/', attachOptionalGuest, async (req, res) => {
   try {
-    await ensurePhotosHasUserPhone();
-
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
@@ -163,7 +144,6 @@ router.get('/', async (req, res) => {
     const query = `SELECT 
         p.id,
         p.user_name,
-        p.user_phone,
         p.image_url,
         p.caption,
         p.created_at,
@@ -172,7 +152,7 @@ router.get('/', async (req, res) => {
       FROM photos p
       LEFT JOIN likes l ON l.photo_id = p.id
       LEFT JOIN comments c ON c.photo_id = p.id
-      GROUP BY p.id, p.user_name, p.user_phone, p.image_url, p.caption, p.created_at
+      GROUP BY p.id, p.user_name, p.image_url, p.caption, p.created_at
       ORDER BY p.created_at DESC
       LIMIT ${safeLimit} OFFSET ${safeOffset}`;
     
@@ -191,11 +171,11 @@ router.get('/', async (req, res) => {
       );
       photo.tags = tags;
 
-      // Check if user liked this photo (if user_phone provided)
-      if (req.query.user_phone) {
+      // Personalize like state only from a verified guest session.
+      if (req.guest) {
         const [liked] = await pool.execute(
           'SELECT id FROM likes WHERE photo_id = ? AND user_phone = ?',
-          [photo.id, req.query.user_phone]
+          [photo.id, req.guest.phone]
         );
         photo.liked = liked.length > 0;
       } else {
@@ -209,7 +189,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      photos,
+      photos: photos.map(serializePhoto),
       pagination: {
         page,
         limit,
@@ -263,7 +243,6 @@ router.get('/photographer', async (req, res) => {
       thumbnail_url: photo.thumbnail_url || photo.image_url, // Fallback to full image if no thumbnail
       user_name: photo.photographer_email || 'Photographer',
       photographer_email: photo.photographer_email, // Include for filtering in manage photos
-      user_phone: null,
       caption: null,
       created_at: photo.created_at,
       category: photo.category,
@@ -301,16 +280,14 @@ router.get('/photographer', async (req, res) => {
 });
 
 // Get single photo with details
-router.get('/:id', async (req, res) => {
+router.get('/:id', attachOptionalGuest, async (req, res) => {
   try {
-    await ensurePhotosHasUserPhone();
     const { id } = req.params;
 
     const [photos] = await pool.execute(
       `SELECT 
         p.id,
         p.user_name,
-        p.user_phone,
         p.image_url,
         p.caption,
         p.created_at,
@@ -340,49 +317,55 @@ router.get('/:id', async (req, res) => {
     );
     photo.tags = tags;
 
-    // Check if user liked
-    if (req.query.user_phone) {
+    // Personalize like state only from a verified guest session.
+    if (req.guest) {
       const [liked] = await pool.execute(
         'SELECT id FROM likes WHERE photo_id = ? AND user_phone = ?',
-        [id, req.query.user_phone]
+        [id, req.guest.phone]
       );
       photo.liked = liked.length > 0;
+    } else {
+      photo.liked = false;
     }
 
-    res.json({ success: true, photo });
+    res.json({ success: true, photo: serializePhoto(photo) });
   } catch (error) {
     console.error('Error fetching photo:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch photo', error: error.message });
   }
 });
 
-// Upload photo (allows both admin and photographer)
-router.post('/upload', authenticateAdminOrPhotographer, upload.single('photo'), async (req, res) => {
+// Upload photo for a verified guest, admin, or photographer.
+router.post('/upload', authenticateGuestOrAdmin, upload.single('photo'), async (req, res) => {
   try {
-    // Admin/photographer uploads use photographer_photo table, so no need to check photos table
-    console.log('[Photo Upload] Request received:', {
-      hasFile: !!req.file,
-      fileName: req.file?.filename,
-      body: req.body,
-      headers: Object.keys(req.headers),
-      userRole: req.admin?.role
-    });
-
-    const { user_name, user_phone, caption, tags, category } = req.body;
-    
-    // Log category for debugging
-    console.log('[Photo Upload] Category:', category);
+    const { caption, category } = req.body;
 
     if (!req.file) {
-      console.error('[Photo Upload] No file received');
       return res.status(400).json({ success: false, message: 'No photo file provided' });
     }
 
-    // Generate image URL (relative path)
     const imageUrl = `/uploads/photos/${req.file.filename}`;
 
-    // For admin/photographer uploads: insert into photographer_photo table only
-    // Validate category is provided
+    if (req.guest) {
+      const cleanCaption = sanitizeText(caption || '', 1000) || null;
+      const [result] = await pool.execute(
+        'INSERT INTO photos (user_name, user_phone, image_url, caption) VALUES (?, ?, ?, ?)',
+        [req.guest.name || 'Guest', req.guest.phone, imageUrl, cleanCaption]
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: 'Photo uploaded successfully',
+        photo: {
+          id: result.insertId,
+          user_name: req.guest.name || 'Guest',
+          image_url: imageUrl,
+          caption: cleanCaption,
+          created_at: new Date(),
+        },
+      });
+    }
+
     if (!category) {
       return res.status(400).json({ success: false, message: 'Category is required' });
     }
@@ -392,64 +375,29 @@ router.post('/upload', authenticateAdminOrPhotographer, upload.single('photo'), 
       return res.status(400).json({ success: false, message: 'Invalid category. Must be one of: pre-wedding, brides-dinner, morning-wedding, grooms-dinner, rom' });
     }
 
-    // Insert into photographer_photo table
-    try {
-      const [result] = await pool.execute(
-        'INSERT INTO photographer_photo (image_url, category, photographer_email) VALUES (?, ?, ?)',
-        [imageUrl, category, req.admin.email]
-      );
-      
-      const photoId = result.insertId;
-      console.log('[Photo Upload] Successfully inserted into photographer_photo table:', photoId);
+    const [result] = await pool.execute(
+      'INSERT INTO photographer_photo (image_url, category, photographer_email) VALUES (?, ?, ?)',
+      [imageUrl, category, req.admin.email]
+    );
 
-      // Auto-run image optimization in background (thumbnails for gallery)
-      triggerImageOptimization();
+    triggerImageOptimization();
 
-      res.status(201).json({
-        success: true,
-        message: 'Photo uploaded successfully',
-        photo: {
-          id: photoId,
-          image_url: imageUrl,
-          category: category,
-          photographer_email: req.admin.email,
-          created_at: new Date()
-        }
-      });
-      return; // Exit after upload
-    } catch (err) {
-      console.error('Error inserting into photographer_photo table:', err);
-      console.error('Error details:', {
-        code: err.code,
-        errno: err.errno,
-        sqlState: err.sqlState,
-        sqlMessage: err.sqlMessage
-      });
-      throw err; // Re-throw to be caught by outer catch block
-    }
-
-    // Note: All admin/photographer uploads go to photographer_photo table only
-    // Regular user uploads (from mobile app) would go to photos table, but that's handled separately
+    return res.status(201).json({
+      success: true,
+      message: 'Photo uploaded successfully',
+      photo: {
+        id: result.insertId,
+        image_url: imageUrl,
+        category,
+        photographer_email: req.admin.email,
+        created_at: new Date(),
+      },
+    });
   } catch (error) {
     console.error('Error uploading photo:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      errno: error.errno,
-      sqlState: error.sqlState,
-      sqlMessage: error.sqlMessage,
-      stack: error.stack
-    });
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to upload photo', 
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? {
-        code: error.code,
-        errno: error.errno,
-        sqlState: error.sqlState,
-        sqlMessage: error.sqlMessage
-      } : undefined
+      message: 'Failed to upload photo'
     });
   }
 });
@@ -663,13 +611,9 @@ router.post('/upload-zip', authenticateAdminOrPhotographer, uploadZip.single('zi
 });
 
 // Delete photo (owner or admin/photographer)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateGuestOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_phone } = req.body;
-
-    const adminEmail = req.headers['x-admin-email'];
-    const adminId = req.headers['x-admin-id'];
 
     // First check if it's in photographer_photo table
     const [photographerPhotos] = await pool.execute(
@@ -682,28 +626,15 @@ router.delete('/:id', async (req, res) => {
       const photo = photographerPhotos[0];
       
       // Check if user is admin or the photographer who uploaded it
-      if (!adminEmail || !adminId) {
+      if (!req.admin) {
         return res.status(403).json({ success: false, message: 'Not authorized to delete this photo' });
       }
 
-      try {
-        const [users] = await pool.execute(
-          'SELECT role FROM admin_users WHERE email = ? AND id = ? LIMIT 1',
-          [adminEmail, adminId]
-        );
-        if (users.length === 0) {
-          return res.status(403).json({ success: false, message: 'Not authorized to delete this photo' });
-        }
-        const role = users[0].role || 'admin';
-        const isAdmin = role === 'admin';
-        const isOwner = photo.photographer_email === adminEmail;
+      const isAdmin = req.admin.role === 'admin';
+      const isOwner = photo.photographer_email === req.admin.email;
 
-        if (!isAdmin && !isOwner) {
-          return res.status(403).json({ success: false, message: 'Not authorized to delete this photo' });
-        }
-      } catch (err) {
-        console.error('Error checking user role:', err);
-        return res.status(500).json({ success: false, message: 'Error checking authorization' });
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ success: false, message: 'Not authorized to delete this photo' });
       }
 
       // Delete photo file
@@ -733,23 +664,13 @@ router.delete('/:id', async (req, res) => {
     const photo = photos[0];
 
     // Check if user is owner, admin, or photographer
-    const isOwner = photo.user_phone === user_phone;
+    const isOwner = req.guest && photo.user_phone === req.guest.phone;
     
     // Check if user is photographer or admin
     let isPhotographerOrAdmin = false;
-    if (adminEmail && adminId) {
-      try {
-        const [users] = await pool.execute(
-          'SELECT role FROM admin_users WHERE email = ? AND id = ? LIMIT 1',
-          [adminEmail, adminId]
-        );
-        if (users.length > 0) {
-          const role = users[0].role || 'admin';
-          isPhotographerOrAdmin = role === 'admin' || role === 'photographer';
-        }
-      } catch (err) {
-        console.error('Error checking user role:', err);
-      }
+    if (req.admin) {
+      isPhotographerOrAdmin =
+        req.admin.role === 'admin' || req.admin.role === 'photographer';
     }
 
     if (!isOwner && !isPhotographerOrAdmin) {
@@ -790,5 +711,3 @@ router.get('/tags/all', async (req, res) => {
 });
 
 module.exports = router;
-
-

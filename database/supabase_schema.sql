@@ -9,11 +9,11 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default admin users (passwords are hashed with bcrypt)
-INSERT INTO admin_users (email, password) VALUES
-('angjinsheng@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'), -- password: 920214
-('psong32@hotmail.com', '$2y$10$dXJ3SW6G7P50lGmMkkmz8ea5P3mYa4WXV0OuHDELbZ4w6T3KJfZYW') -- password: 921119
-ON CONFLICT (email) DO NOTHING;
+-- Create the first admin with a bcrypt hash generated outside the repo.
+-- Example only:
+-- INSERT INTO admin_users (email, password)
+-- VALUES ('admin@example.com', '<bcrypt_hash_from_secure_password>')
+-- ON CONFLICT (email) DO NOTHING;
 
 -- Unified RSVP table
 CREATE TABLE IF NOT EXISTS rsvps (
@@ -68,4 +68,3 @@ CREATE POLICY "Allow reading admin users for authentication" ON admin_users
     FOR SELECT
     TO anon, authenticated
     USING (true);
-

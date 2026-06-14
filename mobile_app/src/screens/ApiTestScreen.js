@@ -77,25 +77,14 @@ export default function ApiTestScreen() {
         const normalizePhone = (value) => value ? value.replace(/\D/g, '') : '';
         const target = normalizePhone(testPhone);
         
-        // Super admin check
-        if (target === '01116473648' || target === '0174907632') {
-          await AsyncStorage.setItem('user_phone', target);
-          await AsyncStorage.setItem('user_role', 'super_admin');
-          return { success: true, message: 'Super admin login successful', phone: target };
-        }
-        
-        // Regular guest check
-        const all = await realApi.getAllRSVPs();
-        const match = Array.isArray(all) 
-          ? all.find((r) => normalizePhone(r.phone) === target)
-          : null;
-        
-        if (!match) {
+        const verifyResult = await realApi.verifyPhone(target);
+        if (!verifyResult.found || !verifyResult.guest) {
           throw new Error('Phone number not found in RSVPs');
         }
         
         await AsyncStorage.setItem('user_phone', target);
-        return { success: true, message: 'Login successful', guest: match };
+        await AsyncStorage.setItem('user_role', 'guest');
+        return { success: true, message: 'Login successful', guest: verifyResult.guest };
       }),
     },
     {
@@ -134,8 +123,7 @@ export default function ApiTestScreen() {
     {
       name: '9. Get Photos',
       action: () => runTest('Get Photos', async () => {
-        const phone = await AsyncStorage.getItem('user_phone');
-        const data = await realApi.getPhotos(1, 10, phone);
+        const data = await realApi.getPhotos(1, 10);
         const photos = Array.isArray(data) ? data : (data.photos || []);
         if (photos.length > 0) setTestPhotoId(photos[0].id);
         return { count: photos.length, sample: photos[0] || null };
@@ -166,25 +154,25 @@ export default function ApiTestScreen() {
       name: '13. Like Photo',
       action: () => runTest('Like Photo', async () => {
         if (!testPhotoId) throw new Error('No photo ID. Run "Get Photos" first.');
-        const phone = await AsyncStorage.getItem('user_phone');
-        if (!phone) throw new Error('Please login first');
-        return realApi.likePhoto(testPhotoId, phone);
+        const token = await AsyncStorage.getItem('guest_token');
+        if (!token) throw new Error('Please login first');
+        return realApi.likePhoto(testPhotoId);
       }),
     },
     {
       name: '14. Add Comment',
       action: () => runTest('Add Comment', async () => {
         if (!testPhotoId) throw new Error('No photo ID. Run "Get Photos" first.');
-        const phone = await AsyncStorage.getItem('user_phone');
-        if (!phone) throw new Error('Please login first');
-        return realApi.addComment(testPhotoId, 'Test User', phone, 'Test comment from mobile app');
+        const token = await AsyncStorage.getItem('guest_token');
+        if (!token) throw new Error('Please login first');
+        return realApi.addComment(testPhotoId, 'Test comment from mobile app');
       }),
     },
     {
       name: '15. Upload Photo',
       action: () => runTest('Upload Photo', async () => {
-        const phone = await AsyncStorage.getItem('user_phone');
-        if (!phone) throw new Error('Please login first');
+        const token = await AsyncStorage.getItem('guest_token');
+        if (!token) throw new Error('Please login first');
         
         // Request permission
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -205,14 +193,12 @@ export default function ApiTestScreen() {
         
         // Create FormData
         const formData = new FormData();
-        formData.append('image', {
+        formData.append('photo', {
           uri: result.assets[0].uri,
           type: 'image/jpeg',
           name: 'test-photo.jpg',
         });
         formData.append('caption', 'Test photo upload from mobile app');
-        formData.append('user_phone', phone);
-        
         const response = await realApi.uploadPhoto(formData);
         if (response.id) setTestPhotoId(response.id);
         return response;
@@ -432,4 +418,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-

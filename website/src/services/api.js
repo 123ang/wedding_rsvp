@@ -14,13 +14,11 @@ const apiClient = axios.create({
 // Add request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Add admin auth headers if available
-    const adminEmail = localStorage.getItem('admin_email');
-    const adminId = localStorage.getItem('admin_id');
+    // Add admin auth token if available
+    const adminToken = localStorage.getItem('admin_token');
     
-    if (adminEmail && adminId) {
-      config.headers['x-admin-email'] = adminEmail;
-      config.headers['x-admin-id'] = adminId;
+    if (adminToken) {
+      config.headers.Authorization = `Bearer ${adminToken}`;
     }
     
     console.log('Making API request:', config.method?.toUpperCase(), config.url);
@@ -109,6 +107,7 @@ export const adminLogin = async (email, password) => {
 
     if (response.data.success) {
       // Store admin session in localStorage
+      localStorage.setItem('admin_token', response.data.token);
       localStorage.setItem('admin_email', response.data.email);
       localStorage.setItem('admin_id', response.data.id);
       localStorage.setItem('admin_role', response.data.role || 'admin');
@@ -143,8 +142,8 @@ export const adminLogin = async (email, password) => {
 export const getAllRSVPs = async () => {
   try {
     // Check if admin is logged in
-    const adminEmail = localStorage.getItem('admin_email');
-    if (!adminEmail) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
       throw {
         response: {
           status: 401,
@@ -170,8 +169,8 @@ export const getAllRSVPs = async () => {
 // Update payment amount (admin only)
 export const updatePaymentAmount = async (id, paymentAmount) => {
   try {
-    const adminEmail = localStorage.getItem('admin_email');
-    if (!adminEmail) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
       throw {
         response: {
           status: 401,
@@ -205,8 +204,8 @@ export const updatePaymentAmount = async (id, paymentAmount) => {
 // Update seat table (admin only)
 export const updateSeatTable = async (id, seatTable) => {
   try {
-    const adminEmail = localStorage.getItem('admin_email');
-    if (!adminEmail) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
       throw {
         response: {
           status: 401,
@@ -240,8 +239,8 @@ export const updateSeatTable = async (id, seatTable) => {
 // Update relationship (admin only)
 export const updateRelationship = async (id, relationship) => {
   try {
-    const adminEmail = localStorage.getItem('admin_email');
-    if (!adminEmail) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
       throw {
         response: {
           status: 401,
@@ -275,8 +274,8 @@ export const updateRelationship = async (id, relationship) => {
 // Update remark (admin only)
 export const updateRemark = async (id, remark) => {
   try {
-    const adminEmail = localStorage.getItem('admin_email');
-    if (!adminEmail) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
       throw {
         response: {
           status: 401,
@@ -310,8 +309,8 @@ export const updateRemark = async (id, remark) => {
 // Get unique relationships (admin only)
 export const getRelationships = async () => {
   try {
-    const adminEmail = localStorage.getItem('admin_email');
-    if (!adminEmail) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
       throw {
         response: {
           status: 401,
@@ -333,8 +332,10 @@ export const getRelationships = async () => {
 
 // Admin logout
 export const adminLogout = () => {
+  localStorage.removeItem('admin_token');
   localStorage.removeItem('admin_email');
   localStorage.removeItem('admin_id');
+  localStorage.removeItem('admin_role');
   return {
     message: "Logged out successfully.",
     success: true
@@ -343,23 +344,16 @@ export const adminLogout = () => {
 
 // Check admin authentication
 export const checkAdminAuth = () => {
+  const adminToken = localStorage.getItem('admin_token');
   const adminEmail = localStorage.getItem('admin_email');
   const adminId = localStorage.getItem('admin_id');
-  let adminRole = localStorage.getItem('admin_role');
-  
-  // If role is not in localStorage, default to 'admin' for backward compatibility
-  // This silently handles older sessions that don't have role stored
-  if (!adminRole && adminEmail && adminId) {
-    adminRole = 'admin';
-    // Save it to localStorage to avoid repeated checks
-    localStorage.setItem('admin_role', adminRole);
-  }
+  const adminRole = localStorage.getItem('admin_role');
   
   return {
-    success: !!adminEmail,
+    success: !!(adminToken && adminEmail && adminId),
     email: adminEmail,
     id: adminId,
-    role: adminRole || 'admin' // Default to 'admin' if not set
+    role: adminRole || 'photographer'
   };
 };
 
@@ -408,4 +402,3 @@ export const deleteUser = async (id) => {
 };
 
 export default apiClient;
-

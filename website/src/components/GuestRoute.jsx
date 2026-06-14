@@ -6,11 +6,11 @@ import { checkAdminAuth } from '../services/api';
  * If user is already logged in, redirect them to dashboard
  */
 const GuestRoute = ({ children }) => {
-  const { success } = checkAdminAuth();
+  const { success, role } = checkAdminAuth();
 
   if (success) {
-    // Already authenticated, redirect to dashboard
-    return <Navigate to="/admin/dashboard" replace />;
+    // Already authenticated, redirect based on role.
+    return <Navigate to={role === 'photographer' ? '/photographer/upload' : '/admin/dashboard'} replace />;
   }
 
   // Not authenticated, allow access to public page (login)
@@ -18,5 +18,4 @@ const GuestRoute = ({ children }) => {
 };
 
 export default GuestRoute;
-
 

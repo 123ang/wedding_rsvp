@@ -6,9 +6,20 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const {
+  attachOptionalGuest,
+  authenticateGuest,
+  authenticateGuestOrAdmin,
+} = require('../middleware/auth');
+const { sanitizeText } = require('../utils/security');
+
+function serializeComment(comment) {
+  const { user_phone, ...publicComment } = comment;
+  return publicComment;
+}
 
 // Get comments for a photo
-router.get('/photo/:photoId', async (req, res) => {
+router.get('/photo/:photoId', attachOptionalGuest, async (req, res) => {
   try {
     const { photoId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -32,7 +43,6 @@ router.get('/photo/:photoId', async (req, res) => {
         c.id,
         c.photo_id,
         c.user_name,
-        c.user_phone,
         c.text,
         c.created_at,
         COUNT(DISTINCT l.id) as likes_count
@@ -45,27 +55,31 @@ router.get('/photo/:photoId', async (req, res) => {
       [photoIdInt]
     );
 
-    // Check if user liked each comment
-    if (req.query.user_phone) {
+    // Personalize like state only from a verified guest session.
+    if (req.guest) {
       for (let comment of comments) {
         const [liked] = await pool.execute(
           'SELECT id FROM likes WHERE comment_id = ? AND user_phone = ?',
-          [comment.id, req.query.user_phone]
+          [comment.id, req.guest.phone]
         );
         comment.liked = liked.length > 0;
       }
+    } else {
+      comments.forEach((comment) => {
+        comment.liked = false;
+      });
     }
 
     // Get total count
     const [countResult] = await pool.execute(
       'SELECT COUNT(*) as total FROM comments WHERE photo_id = ?',
-      [photoId]
+      [photoIdInt]
     );
     const total = countResult[0].total;
 
     res.json({
       success: true,
-      comments,
+      comments: comments.map(serializeComment),
       pagination: {
         page,
         limit,
@@ -81,14 +95,16 @@ router.get('/photo/:photoId', async (req, res) => {
 });
 
 // Add comment to photo
-router.post('/', async (req, res) => {
+router.post('/', authenticateGuest, async (req, res) => {
   try {
-    const { photo_id, user_name, user_phone, text } = req.body;
+    const { photo_id, text } = req.body;
+    const normalizedUserPhone = req.guest.phone;
+    const cleanText = sanitizeText(text, 1000);
 
-    if (!photo_id || !user_phone || !text) {
+    if (!photo_id || !cleanText) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Photo ID, user phone, and text are required' 
+        message: 'Photo ID and text are required'
       });
     }
 
@@ -98,24 +114,10 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Photo not found' });
     }
 
-    // Resolve display name from RSVPs
-    let resolvedName = user_name || null;
-    try {
-      const [rsvpRows] = await pool.execute(
-        'SELECT name FROM rsvps WHERE phone = ? OR phone LIKE ? LIMIT 1',
-        [user_phone, `%${user_phone}%`]
-      );
-      if (rsvpRows.length > 0) {
-        resolvedName = rsvpRows[0].name;
-      }
-    } catch (e) {
-      // ignore lookup errors, fallback to provided name
-    }
-
     // Insert comment
     const [result] = await pool.execute(
       'INSERT INTO comments (photo_id, user_name, user_phone, text) VALUES (?, ?, ?, ?)',
-      [photo_id, resolvedName || 'Guest', user_phone, text]
+      [photo_id, req.guest.name || 'Guest', normalizedUserPhone, cleanText]
     );
 
     const commentId = result.insertId;
@@ -126,7 +128,6 @@ router.post('/', async (req, res) => {
         id,
         photo_id,
         user_name,
-        user_phone,
         text,
         created_at
       FROM comments
@@ -137,7 +138,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Comment added successfully',
-      comment: comments[0]
+      comment: serializeComment(comments[0])
     });
   } catch (error) {
     console.error('Error adding comment:', error);
@@ -146,12 +147,13 @@ router.post('/', async (req, res) => {
 });
 
 // Update comment (owner only)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateGuest, async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_phone, text } = req.body;
+    const { text } = req.body;
+    const cleanText = sanitizeText(text, 1000);
 
-    if (!text) {
+    if (!cleanText) {
       return res.status(400).json({ success: false, message: 'Text is required' });
     }
 
@@ -166,14 +168,14 @@ router.put('/:id', async (req, res) => {
     }
 
     // Check if user is owner
-    if (comments[0].user_phone !== user_phone) {
+    if (comments[0].user_phone !== req.guest.phone) {
       return res.status(403).json({ success: false, message: 'Not authorized to update this comment' });
     }
 
     // Update comment
     await pool.execute(
       'UPDATE comments SET text = ? WHERE id = ?',
-      [text, id]
+      [cleanText, id]
     );
 
     res.json({ success: true, message: 'Comment updated successfully' });
@@ -184,10 +186,9 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete comment (owner or admin)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateGuestOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_phone } = req.body;
 
     // Get comment
     const [comments] = await pool.execute(
@@ -199,9 +200,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Comment not found' });
     }
 
-    // Check if user is owner or admin
-    const isOwner = comments[0].user_phone === user_phone;
-    const isAdmin = req.headers['x-admin-email'];
+    const isOwner = req.guest && comments[0].user_phone === req.guest.phone;
+    const isAdmin = req.admin && req.admin.role === 'admin';
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this comment' });
@@ -218,4 +218,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-

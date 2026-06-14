@@ -6,36 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-
-// Ensure collections table exists
-const ensureCollectionsTable = async () => {
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS collections (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      photo_id INT NOT NULL,
-      user_phone VARCHAR(32) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uniq_photo_user (photo_id, user_phone),
-      KEY idx_user_phone (user_phone),
-      CONSTRAINT fk_collections_photo
-        FOREIGN KEY (photo_id) REFERENCES photos(id)
-        ON DELETE CASCADE
-    )
-  `);
-};
+const { authenticateGuest } = require('../middleware/auth');
 
 // Toggle save/unsave a photo for a user
-router.post('/photo/:photoId', async (req, res) => {
+router.post('/photo/:photoId', authenticateGuest, async (req, res) => {
   try {
     const { photoId } = req.params;
-    const { user_phone } = req.body;
-
-    if (!user_phone) {
-      return res.status(400).json({ success: false, message: 'User phone is required' });
-    }
-
-    // Ensure table exists
-    await ensureCollectionsTable();
+    const userPhone = req.guest.phone;
 
     // Ensure photo exists
     const [photos] = await pool.execute('SELECT id FROM photos WHERE id = ?', [photoId]);
@@ -46,14 +23,14 @@ router.post('/photo/:photoId', async (req, res) => {
     // Check if already saved
     const [existing] = await pool.execute(
       'SELECT id FROM collections WHERE photo_id = ? AND user_phone = ?',
-      [photoId, user_phone]
+      [photoId, userPhone]
     );
 
     if (existing.length > 0) {
       // Unsave
       await pool.execute('DELETE FROM collections WHERE photo_id = ? AND user_phone = ?', [
         photoId,
-        user_phone,
+        userPhone,
       ]);
 
       const [countResult] = await pool.execute(
@@ -72,7 +49,7 @@ router.post('/photo/:photoId', async (req, res) => {
     // Save
     await pool.execute('INSERT INTO collections (photo_id, user_phone) VALUES (?, ?)', [
       photoId,
-      user_phone,
+      userPhone,
     ]);
 
     const [countResult] = await pool.execute(
@@ -95,21 +72,14 @@ router.post('/photo/:photoId', async (req, res) => {
 });
 
 // Get all saved photos for a user
-router.get('/my', async (req, res) => {
+router.get('/my', authenticateGuest, async (req, res) => {
   try {
-    const { user_phone } = req.query;
-
-    if (!user_phone) {
-      return res.status(400).json({ success: false, message: 'User phone is required' });
-    }
-
-    await ensureCollectionsTable();
+    const userPhone = req.guest.phone;
 
     const [rows] = await pool.execute(
       `SELECT 
         p.id,
         p.user_name,
-        p.user_phone,
         p.image_url,
         p.caption,
         p.created_at
@@ -117,7 +87,7 @@ router.get('/my', async (req, res) => {
       INNER JOIN photos p ON p.id = c.photo_id
       WHERE c.user_phone = ?
       ORDER BY c.created_at DESC`,
-      [user_phone]
+      [userPhone]
     );
 
     res.json({ success: true, photos: rows });
@@ -128,5 +98,3 @@ router.get('/my', async (req, res) => {
 });
 
 module.exports = router;
-
-

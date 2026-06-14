@@ -13,11 +13,10 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default admin users
-INSERT INTO admin_users (email, password) VALUES
-('angjinsheng@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'), -- password: 920214
-('psong32@hotmail.com', '$2y$10$dXJ3SW6G7P50lGmMkkmz8ea5P3mYa4WXV0OuHDELbZ4w6T3KJfZYW'), -- password: 921119
-('jasonang1668@gmail.com', '123456'); -- password: 123456
+-- Create the first admin with a bcrypt hash generated outside the repo.
+-- Example only:
+-- INSERT INTO admin_users (email, password, role)
+-- VALUES ('admin@example.com', '<bcrypt_hash_from_secure_password>', 'admin');
 
 -- Unified RSVP table (replaces separate bride and groom tables)
 CREATE TABLE IF NOT EXISTS rsvps (
@@ -36,4 +35,3 @@ CREATE TABLE IF NOT EXISTS rsvps (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_email_wedding (email, wedding_type)
 );
-

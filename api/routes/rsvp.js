@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const {
+  createGuestToken,
+  normalizePhone,
+  normalizedPhoneSql,
+} = require('../utils/security');
 
 // Submit Bride RSVP
 router.post('/bride-rsvp', async (req, res) => {
@@ -185,12 +190,18 @@ router.get('/verify-phone/:phone', async (req, res) => {
     }
 
     // Normalize phone (remove non-digits)
-    const normalizedPhone = phone.replace(/\D/g, '');
+    const normalized = normalizePhone(phone);
+    if (normalized.length < 7) {
+      return res.status(400).json({
+        message: "Invalid phone number.",
+        success: false
+      });
+    }
 
-    // Search for phone in RSVPs (check both bride and groom)
+    // Search for exact normalized phone in RSVPs (check both bride and groom)
     const [rsvps] = await pool.execute(
-      'SELECT id, name, email, phone, wedding_type, attending, seat_table FROM rsvps WHERE phone = ? OR phone LIKE ?',
-      [normalizedPhone, `%${normalizedPhone}%`]
+      `SELECT name, wedding_type, attending, seat_table FROM rsvps WHERE ${normalizedPhoneSql('phone')} = ?`,
+      [normalized]
     );
 
     if (rsvps.length === 0) {
@@ -208,25 +219,22 @@ router.get('/verify-phone/:phone', async (req, res) => {
       primaryGuest = brideRecord;
     }
 
-    // Return the primary match (and all matches for debugging/use if needed)
+    // Return only the primary match; do not expose all matching RSVP records.
     res.json({
       message: "Phone number found.",
       success: true,
       found: true,
+      token: createGuestToken({
+        phone: normalized,
+        name: primaryGuest.name,
+        weddingType: primaryGuest.wedding_type,
+      }),
       guest: {
         name: primaryGuest.name,
-        phone: primaryGuest.phone,
-        wedding_type: primaryGuest.wedding_type
-      },
-      // Return all RSVPs for this phone in case they have multiple
-      rsvps: rsvps.map(r => ({
-        id: r.id,
-        name: r.name,
-        phone: r.phone,
-        wedding_type: r.wedding_type,
-        attending: r.attending,
-        seat_table: r.seat_table
-      }))
+        wedding_type: primaryGuest.wedding_type,
+        attending: primaryGuest.attending,
+        seat_table: primaryGuest.seat_table
+      }
     });
   } catch (error) {
     console.error('Verify phone error:', error);
@@ -238,4 +246,3 @@ router.get('/verify-phone/:phone', async (req, res) => {
 });
 
 module.exports = router;
-

@@ -21,12 +21,12 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const adminEmail = await AsyncStorage.getItem('admin_email');
-      const adminId = await AsyncStorage.getItem('admin_id');
+      const adminToken = await AsyncStorage.getItem('admin_token');
+      const guestToken = await AsyncStorage.getItem('guest_token');
       
-      if (adminEmail && adminId) {
-        config.headers['x-admin-email'] = adminEmail;
-        config.headers['x-admin-id'] = adminId;
+      const authToken = adminToken || guestToken;
+      if (authToken) {
+        config.headers.Authorization = `Bearer ${authToken}`;
       }
     } catch (error) {
       console.error('Error reading auth from storage:', error);
@@ -75,7 +75,13 @@ apiClient.interceptors.response.use(
     
     if (error.response?.status === 401) {
       // Unauthorized - clear auth
-      AsyncStorage.multiRemove(['admin_email', 'admin_id']);
+      AsyncStorage.multiRemove([
+        'admin_token',
+        'admin_email',
+        'admin_id',
+        'admin_role',
+        'guest_token',
+      ]);
     }
     
     return Promise.reject(error);
@@ -102,22 +108,26 @@ const realApi = {
     
     if (response.data.success) {
       // Save auth to storage
+      await AsyncStorage.setItem('admin_token', response.data.token);
       await AsyncStorage.setItem('admin_email', response.data.email);
       await AsyncStorage.setItem('admin_id', response.data.id.toString());
+      await AsyncStorage.setItem('admin_role', response.data.role || 'photographer');
     }
     
     return response.data;
   },
 
   adminLogout: async () => {
-    await AsyncStorage.multiRemove(['admin_email', 'admin_id']);
+    await AsyncStorage.multiRemove(['admin_token', 'admin_email', 'admin_id', 'admin_role']);
     return { success: true };
   },
 
   checkAuth: async () => {
+    const token = await AsyncStorage.getItem('admin_token');
     const email = await AsyncStorage.getItem('admin_email');
     const id = await AsyncStorage.getItem('admin_id');
-    return { success: !!(email && id), email, id };
+    const role = await AsyncStorage.getItem('admin_role');
+    return { success: !!(token && email && id), email, id, role };
   },
 
   // RSVP Endpoints
@@ -146,6 +156,9 @@ const realApi = {
     console.log('[API] Calling GET /verify-phone/' + normalizedPhone);
     try {
       const response = await apiClient.get(`/verify-phone/${normalizedPhone}`);
+      if (response.data?.token) {
+        await AsyncStorage.setItem('guest_token', response.data.token);
+      }
       console.log('[API] verifyPhone response:', {
         status: response.status,
         found: response.data?.found,
@@ -205,17 +218,14 @@ const realApi = {
   },
 
   // Photos
-  getPhotos: async (page = 1, limit = 20, userPhone = null) => {
+  getPhotos: async (page = 1, limit = 20) => {
     const params = { page, limit };
-    if (userPhone) params.user_phone = userPhone;
-    
     const response = await apiClient.get('/photos', { params });
     return response.data;
   },
 
-  getPhoto: async (photoId, userPhone = null) => {
-    const params = userPhone ? { user_phone: userPhone } : {};
-    const response = await apiClient.get(`/photos/${photoId}`, { params });
+  getPhoto: async (photoId) => {
+    const response = await apiClient.get(`/photos/${photoId}`);
     // Backend returns { success, photo }
     return response.data.photo || response.data;
   },
@@ -247,51 +257,41 @@ const realApi = {
     }
   },
 
-  deletePhoto: async (photoId, userPhone) => {
-    const response = await apiClient.delete(`/photos/${photoId}`, {
-      data: { user_phone: userPhone },
-    });
+  deletePhoto: async (photoId) => {
+    const response = await apiClient.delete(`/photos/${photoId}`);
     return response.data;
   },
 
   // Comments
-  getComments: async (photoId, page = 1, limit = 50, userPhone = null) => {
+  getComments: async (photoId, page = 1, limit = 50) => {
     const params = { page, limit };
-    if (userPhone) params.user_phone = userPhone;
-    
     const response = await apiClient.get(`/comments/photo/${photoId}`, { params });
     return response.data;
   },
 
-  addComment: async (photoId, userName, userPhone, text) => {
+  addComment: async (photoId, text) => {
     const response = await apiClient.post('/comments', {
       photo_id: photoId,
-      user_phone: userPhone,
       text,
     });
     return response.data;
   },
 
-  updateComment: async (commentId, userPhone, text) => {
+  updateComment: async (commentId, text) => {
     const response = await apiClient.put(`/comments/${commentId}`, {
-      user_phone: userPhone,
       text,
     });
     return response.data;
   },
 
-  deleteComment: async (commentId, userPhone) => {
-    const response = await apiClient.delete(`/comments/${commentId}`, {
-      data: { user_phone: userPhone },
-    });
+  deleteComment: async (commentId) => {
+    const response = await apiClient.delete(`/comments/${commentId}`);
     return response.data;
   },
 
   // Likes
-  likePhoto: async (photoId, userPhone) => {
-    const response = await apiClient.post(`/likes/photo/${photoId}`, {
-      user_phone: userPhone,
-    });
+  likePhoto: async (photoId) => {
+    const response = await apiClient.post(`/likes/photo/${photoId}`, {});
     // API returns: { success, message, liked, likes_count }
     const data = response.data || {};
     return {
@@ -302,10 +302,8 @@ const realApi = {
   },
 
   // Collections (save/unsave photo)
-  toggleSavePhoto: async (photoId, userPhone) => {
-    const response = await apiClient.post(`/collections/photo/${photoId}`, {
-      user_phone: userPhone,
-    });
+  toggleSavePhoto: async (photoId) => {
+    const response = await apiClient.post(`/collections/photo/${photoId}`, {});
     const data = response.data || {};
     return {
       photoId,
@@ -314,24 +312,18 @@ const realApi = {
     };
   },
 
-  getMyCollections: async (userPhone) => {
-    const response = await apiClient.get('/collections/my', {
-      params: { user_phone: userPhone },
-    });
+  getMyCollections: async () => {
+    const response = await apiClient.get('/collections/my');
     return response.data;
   },
 
-  deleteVideo: async (videoId, userPhone) => {
-    const response = await apiClient.delete(`/videos/${videoId}`, {
-      data: { user_phone: userPhone },
-    });
+  deleteVideo: async (videoId) => {
+    const response = await apiClient.delete(`/videos/${videoId}`);
     return response.data;
   },
 
-  likeComment: async (commentId, userPhone) => {
-    const response = await apiClient.post(`/likes/comment/${commentId}`, {
-      user_phone: userPhone,
-    });
+  likeComment: async (commentId) => {
+    const response = await apiClient.post(`/likes/comment/${commentId}`, {});
     return response.data;
   },
 
@@ -437,4 +429,3 @@ const realApi = {
 };
 
 export default realApi;
-

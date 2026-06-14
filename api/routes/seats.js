@@ -6,10 +6,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, requireAdmin } = require('../middleware/auth');
+const { normalizePhone, normalizedPhoneSql } = require('../utils/security');
 
 // Get all seats
-router.get('/', async (req, res) => {
+router.get('/', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const [seats] = await pool.execute(
       `SELECT 
@@ -36,18 +37,21 @@ router.get('/', async (req, res) => {
 router.get('/my-seat/:phone', async (req, res) => {
   try {
     const { phone } = req.params;
+    const normalizedPhone = normalizePhone(phone);
+
+    if (normalizedPhone.length < 7) {
+      return res.status(400).json({ success: false, message: 'Invalid phone number' });
+    }
 
     const [seats] = await pool.execute(
       `SELECT 
         id,
         table_number,
         seat_number,
-        guest_name,
-        guest_phone,
         status
       FROM seats
-      WHERE guest_phone = ?`,
-      [phone]
+      WHERE ${normalizedPhoneSql('guest_phone')} = ?`,
+      [normalizedPhone]
     );
 
     if (seats.length === 0) {
@@ -62,7 +66,7 @@ router.get('/my-seat/:phone', async (req, res) => {
 });
 
 // Assign seat (admin only)
-router.post('/assign', authenticateAdmin, async (req, res) => {
+router.post('/assign', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { table_number, seat_number, guest_name, guest_phone, rsvp_id } = req.body;
 
@@ -96,7 +100,7 @@ router.post('/assign', authenticateAdmin, async (req, res) => {
 });
 
 // Update seat (admin only)
-router.put('/:id', authenticateAdmin, async (req, res) => {
+router.put('/:id', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { guest_name, guest_phone, rsvp_id, status } = req.body;
@@ -121,7 +125,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
 });
 
 // Clear seat (admin only)
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+router.delete('/:id', authenticateAdmin, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -145,4 +149,3 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
 });
 
 module.exports = router;
-

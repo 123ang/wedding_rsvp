@@ -2,6 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { createRateLimiter } = require('./middleware/rateLimit');
+const { buildAllowedCorsOrigins, requireStrongSecret } = require('./utils/security');
+
+const app = express();
+const PORT = process.env.PORT || 3002;
+const allowedCorsOrigins = buildAllowedCorsOrigins(process.env);
+
+requireStrongSecret(process.env, 'JWT_SECRET');
+
 const rsvpRoutes = require('./routes/rsvp');
 const adminRoutes = require('./routes/admin');
 const photosRoutes = require('./routes/photos');
@@ -13,16 +22,71 @@ const seatsRoutes = require('./routes/seats');
 const timelineRoutes = require('./routes/timeline');
 const songsRoutes = require('./routes/songs');
 
-const app = express();
-const PORT = process.env.PORT || 3002;
-
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedCorsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS origin not allowed'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const loginLimiter = createRateLimiter({
+  keyPrefix: 'login',
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many login attempts. Please try again later.',
+});
+const phoneLookupLimiter = createRateLimiter({
+  keyPrefix: 'phone-lookup',
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many phone verification attempts. Please try again later.',
+});
+const uploadLimiter = createRateLimiter({
+  keyPrefix: 'upload',
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many upload attempts. Please try again later.',
+});
+const interactionLimiter = createRateLimiter({
+  keyPrefix: 'interaction',
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests. Please slow down and try again later.',
+});
+
+app.use('/api/admin/login', loginLimiter);
+app.use('/api/verify-phone', phoneLookupLimiter);
+app.use('/api/photos/upload', uploadLimiter);
+app.use('/api/photos/upload-zip', uploadLimiter);
+app.use('/api/videos/upload', uploadLimiter);
+app.use('/api/comments', interactionLimiter);
+app.use('/api/videos', interactionLimiter);
+
+// Serve only validated public image/audio directories. Videos use authenticated API streaming.
+app.use(
+  '/uploads/photos',
+  express.static(path.join(__dirname, '../uploads/photos'), {
+    fallthrough: false,
+    setHeaders(res) {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  })
+);
+app.use(
+  '/uploads/song',
+  express.static(path.join(__dirname, '../uploads/song'), {
+    fallthrough: false,
+    setHeaders(res) {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  })
+);
 
 // Request logging
 app.use((req, res, next) => {
@@ -76,4 +140,3 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
-

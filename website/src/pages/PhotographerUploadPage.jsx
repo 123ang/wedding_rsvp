@@ -4,6 +4,11 @@ import { checkAdminAuth, adminLogout } from '../services/api';
 import { API_BASE_URL } from '../config/api';
 import './PhotographerUploadPage.css';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('admin_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 const PhotographerUploadPage = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -42,15 +47,9 @@ const PhotographerUploadPage = () => {
   const fetchMyPhotos = async () => {
     setLoadingPhotos(true);
     try {
-      const adminEmail = localStorage.getItem('admin_email');
-      const adminId = localStorage.getItem('admin_id');
-      
       // Fetch from photographer_photo table endpoint
       const response = await fetch(`${API_BASE_URL}/photos/photographer?limit=1000`, {
-        headers: {
-          'x-admin-email': adminEmail,
-          'x-admin-id': adminId
-        }
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       
@@ -122,8 +121,7 @@ const PhotographerUploadPage = () => {
     setSuccess('');
     setZipProgress(0);
 
-    const adminEmail = localStorage.getItem('admin_email');
-    const adminId = localStorage.getItem('admin_id');
+    const adminToken = localStorage.getItem('admin_token');
 
     try {
       const formData = new FormData();
@@ -157,8 +155,9 @@ const PhotographerUploadPage = () => {
         xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
         xhr.open('POST', `${API_BASE_URL}/photos/upload-zip`);
-        xhr.setRequestHeader('x-admin-email', adminEmail);
-        xhr.setRequestHeader('x-admin-id', adminId);
+        if (adminToken) {
+          xhr.setRequestHeader('Authorization', `Bearer ${adminToken}`);
+        }
         xhr.send(formData);
       });
 
@@ -208,8 +207,7 @@ const PhotographerUploadPage = () => {
     });
     setUploadProgress(initialProgress);
 
-    const adminEmail = localStorage.getItem('admin_email');
-    const adminId = localStorage.getItem('admin_id');
+    const adminToken = localStorage.getItem('admin_token');
     let successCount = 0;
     let errorCount = 0;
 
@@ -302,8 +300,9 @@ const PhotographerUploadPage = () => {
 
             try {
               xhr.open('POST', `${API_BASE_URL}/photos/upload`);
-              xhr.setRequestHeader('x-admin-email', adminEmail);
-              xhr.setRequestHeader('x-admin-id', adminId);
+              if (adminToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${adminToken}`);
+              }
               xhr.send(formData);
             } catch (openError) {
               clearTimeout(timeout);
@@ -370,17 +369,12 @@ const PhotographerUploadPage = () => {
     }
 
     try {
-      const adminEmail = localStorage.getItem('admin_email');
-      const adminId = localStorage.getItem('admin_id');
-
       const response = await fetch(`${API_BASE_URL}/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-email': adminEmail,
-          'x-admin-id': adminId
-        },
-        body: JSON.stringify({ user_phone: null }) // Photographers don't need user_phone
+          ...getAuthHeaders()
+        }
       });
 
       const data = await response.json();
@@ -758,5 +752,3 @@ const PhotographerUploadPage = () => {
 };
 
 export default PhotographerUploadPage;
-
-

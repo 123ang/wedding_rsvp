@@ -43,21 +43,6 @@ export default function LoginScreen({ navigation }) {
       // Normalize phone once
       const target = normalizePhone(trimmed);
 
-      // Super admin bypass (groom & bride)
-      const superAdmins = ['01116473648', '0174907632'];
-      if (superAdmins.includes(target)) {
-        await AsyncStorage.setItem('user_phone', target);
-        await AsyncStorage.setItem('user_role', 'super_admin');
-
-        Alert.alert('Welcome 🎉', 'Admin login successful.', [
-          {
-            text: 'Continue',
-            onPress: () => navigation.replace('Main'),
-          },
-        ]);
-        return;
-      }
-
       // Regular guest login: Verify phone number using public endpoint
       let verifyResult;
       try {
@@ -90,6 +75,7 @@ export default function LoginScreen({ navigation }) {
 
       // Save user phone (normalized) and wedding type for later API calls
       await AsyncStorage.setItem('user_phone', target);
+      await AsyncStorage.setItem('guest_token', verifyResult.token);
       await AsyncStorage.setItem('user_role', 'guest');
       
       // Store wedding_type (bride or groom) in lowercase to load correct wedding info
@@ -232,5 +218,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-

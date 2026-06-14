@@ -35,6 +35,7 @@ coverage/
 # Uploads folder (user content; only structure/placeholders tracked below)
 uploads/
 uploads/*
+private_uploads/
 # Allow uploads/song dir (songs loaded from API; add MP3s on server)
 !uploads/song/
 !uploads/song/.gitkeep

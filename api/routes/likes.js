@@ -6,16 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { authenticateGuest } = require('../middleware/auth');
 
 // Like/unlike a photo
-router.post('/photo/:photoId', async (req, res) => {
+router.post('/photo/:photoId', authenticateGuest, async (req, res) => {
   try {
     const { photoId } = req.params;
-    const { user_phone } = req.body;
-
-    if (!user_phone) {
-      return res.status(400).json({ success: false, message: 'User phone is required' });
-    }
+    const userPhone = req.guest.phone;
 
     // Check if photo exists
     const [photos] = await pool.execute('SELECT id FROM photos WHERE id = ?', [photoId]);
@@ -26,14 +23,14 @@ router.post('/photo/:photoId', async (req, res) => {
     // Check if already liked
     const [existing] = await pool.execute(
       'SELECT id FROM likes WHERE photo_id = ? AND user_phone = ?',
-      [photoId, user_phone]
+      [photoId, userPhone]
     );
 
     if (existing.length > 0) {
       // Unlike
       await pool.execute(
         'DELETE FROM likes WHERE photo_id = ? AND user_phone = ?',
-        [photoId, user_phone]
+        [photoId, userPhone]
       );
 
       // Get updated count
@@ -52,7 +49,7 @@ router.post('/photo/:photoId', async (req, res) => {
       // Like
       await pool.execute(
         'INSERT INTO likes (photo_id, user_phone) VALUES (?, ?)',
-        [photoId, user_phone]
+        [photoId, userPhone]
       );
 
       // Get updated count
@@ -75,14 +72,10 @@ router.post('/photo/:photoId', async (req, res) => {
 });
 
 // Like/unlike a comment
-router.post('/comment/:commentId', async (req, res) => {
+router.post('/comment/:commentId', authenticateGuest, async (req, res) => {
   try {
     const { commentId } = req.params;
-    const { user_phone } = req.body;
-
-    if (!user_phone) {
-      return res.status(400).json({ success: false, message: 'User phone is required' });
-    }
+    const userPhone = req.guest.phone;
 
     // Check if comment exists
     const [comments] = await pool.execute('SELECT id FROM comments WHERE id = ?', [commentId]);
@@ -93,14 +86,14 @@ router.post('/comment/:commentId', async (req, res) => {
     // Check if already liked
     const [existing] = await pool.execute(
       'SELECT id FROM likes WHERE comment_id = ? AND user_phone = ?',
-      [commentId, user_phone]
+      [commentId, userPhone]
     );
 
     if (existing.length > 0) {
       // Unlike
       await pool.execute(
         'DELETE FROM likes WHERE comment_id = ? AND user_phone = ?',
-        [commentId, user_phone]
+        [commentId, userPhone]
       );
 
       // Get updated count
@@ -119,7 +112,7 @@ router.post('/comment/:commentId', async (req, res) => {
       // Like
       await pool.execute(
         'INSERT INTO likes (comment_id, user_phone) VALUES (?, ?)',
-        [commentId, user_phone]
+        [commentId, userPhone]
       );
 
       // Get updated count
@@ -146,15 +139,14 @@ router.get('/photo/:photoId', async (req, res) => {
   try {
     const { photoId } = req.params;
 
-    const [likes] = await pool.execute(
-      'SELECT user_phone, created_at FROM likes WHERE photo_id = ? ORDER BY created_at DESC',
+    const [countResult] = await pool.execute(
+      'SELECT COUNT(*) as count FROM likes WHERE photo_id = ?',
       [photoId]
     );
 
     res.json({
       success: true,
-      likes,
-      count: likes.length
+      count: countResult[0].count
     });
   } catch (error) {
     console.error('Error fetching photo likes:', error);
@@ -167,15 +159,14 @@ router.get('/comment/:commentId', async (req, res) => {
   try {
     const { commentId } = req.params;
 
-    const [likes] = await pool.execute(
-      'SELECT user_phone, created_at FROM likes WHERE comment_id = ? ORDER BY created_at DESC',
+    const [countResult] = await pool.execute(
+      'SELECT COUNT(*) as count FROM likes WHERE comment_id = ?',
       [commentId]
     );
 
     res.json({
       success: true,
-      likes,
-      count: likes.length
+      count: countResult[0].count
     });
   } catch (error) {
     console.error('Error fetching comment likes:', error);
@@ -184,4 +175,3 @@ router.get('/comment/:commentId', async (req, res) => {
 });
 
 module.exports = router;
-

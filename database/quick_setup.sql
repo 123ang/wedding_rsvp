@@ -9,7 +9,7 @@ CREATE DATABASE IF NOT EXISTS wedding_rsvp
 
 -- 2. Create user (CHANGE THE PASSWORD!)
 CREATE USER IF NOT EXISTS 'wedding_user'@'localhost' 
-  IDENTIFIED BY '920214@Ang';
+  IDENTIFIED BY 'REPLACE_WITH_STRONG_DB_PASSWORD';
 
 -- 3. Grant all privileges on wedding_rsvp database
 GRANT ALL PRIVILEGES ON wedding_rsvp.* TO 'wedding_user'@'localhost';
@@ -29,4 +29,3 @@ SHOW GRANTS FOR 'wedding_user'@'localhost';
 --    DB_PASSWORD=YOUR_SECURE_PASSWORD_HERE
 -- 2. Run create_tables.sql to create tables
 -- 3. Run phase2_schema.sql to add Phase 2 tables
-

@@ -7,7 +7,7 @@ USE wedding_rsvp;
 CREATE TABLE IF NOT EXISTS photos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_name VARCHAR(255) NOT NULL,
-    user_phone VARCHAR(50) NOT NULL,
+    user_phone VARCHAR(50) NULL,
     image_url VARCHAR(500) NOT NULL,
     caption TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -69,12 +69,26 @@ CREATE TABLE IF NOT EXISTS videos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    user_phone VARCHAR(50) NULL,
     video_url VARCHAR(500) NOT NULL,
     thumbnail_url VARCHAR(500),
     duration INT DEFAULT 0, -- in seconds
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Saved photo collections
+CREATE TABLE IF NOT EXISTS collections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    photo_id INT NOT NULL,
+    user_phone VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_photo_user (photo_id, user_phone),
+    KEY idx_user_phone (user_phone),
+    CONSTRAINT fk_collections_photo
+      FOREIGN KEY (photo_id) REFERENCES photos(id)
+      ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Timeline events table
@@ -158,4 +172,3 @@ INSERT INTO tags (name, usage_count) VALUES
 ('#婚礼花絮', 0),
 ('#宾客合影', 0),
 ('#婚礼布置', 0);
-

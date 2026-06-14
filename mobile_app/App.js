@@ -680,7 +680,7 @@ const PhotoFeedScreen = ({ navigation }) => {
         Alert.alert('Error', 'Please login first');
         return;
       }
-      const result = await realApi.likePhoto(photoId, userPhone);
+      const result = await realApi.likePhoto(photoId);
       setPhotos(photos.map(p => {
         if (p.type !== 'photo' || p.id !== photoId) return p;
         return {
@@ -701,7 +701,7 @@ const PhotoFeedScreen = ({ navigation }) => {
         Alert.alert('Error', 'Please login first');
         return;
       }
-      const result = await realApi.toggleSavePhoto(photoId, userPhone);
+      const result = await realApi.toggleSavePhoto(photoId);
       setPhotos(photos.map(p => {
         if (p.type !== 'photo' || p.id !== photoId) return p;
         return {
@@ -929,8 +929,8 @@ const PhotoDetailScreen = ({ route, navigation }) => {
     try {
       const userPhone = await AsyncStorage.getItem('user_phone');
       const [photoResponse, commentsResponse] = await Promise.all([
-        realApi.getPhoto(photo.id, userPhone),
-        realApi.getComments(photo.id, 1, 100, userPhone),
+        realApi.getPhoto(photo.id),
+        realApi.getComments(photo.id, 1, 100),
       ]);
 
       const photoData = photoResponse.photo || photoResponse || {};
@@ -995,7 +995,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         Alert.alert('Error', 'Please login first');
         return;
       }
-      const result = await realApi.likePhoto(photo.id, userPhone);
+      const result = await realApi.likePhoto(photo.id);
       setPhoto(prev => ({
         ...prev,
         likedByMe: toBoolean(result.likedByMe),
@@ -1013,7 +1013,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         Alert.alert('Error', 'Please login first');
         return;
       }
-      const result = await realApi.toggleSavePhoto(photo.id, userPhone);
+      const result = await realApi.toggleSavePhoto(photo.id);
       setPhoto(prev => ({
         ...prev,
         savedByMe: toBoolean(result.savedByMe),
@@ -1039,7 +1039,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
           Alert.alert('Error', 'Please login first');
           return;
         }
-        await realApi.addComment(photo.id, null, userPhone, commentText);
+        await realApi.addComment(photo.id, commentText);
         // Reload full photo with comments after adding
         await loadFullPhoto();
         setCommentText('');
@@ -1057,7 +1057,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         Alert.alert('Error', 'Please login first');
         return;
       }
-      await realApi.likeComment(commentId, userPhone);
+      await realApi.likeComment(commentId);
       // Reload photo to get updated comment likes
       await loadFullPhoto();
     } catch (error) {
@@ -1372,28 +1372,6 @@ const PhotoUploadScreen = ({ navigation }) => {
         name: fileName,
       });
       
-      // Get user name from RSVP or use default
-      let userName = 'Guest';
-      try {
-        console.log('[PhotoUpload] Fetching user name from RSVP...');
-        const verifyResult = await realApi.verifyPhone(userPhone);
-        console.log('[PhotoUpload] verifyPhone response:', {
-          found: verifyResult.found,
-          hasGuest: !!verifyResult.guest,
-          guestName: verifyResult.guest?.name || 'N/A'
-        });
-        if (verifyResult.found && verifyResult.guest && verifyResult.guest.name) {
-          userName = verifyResult.guest.name;
-        }
-      } catch (e) {
-        console.log('[PhotoUpload] Could not fetch user name, using default:', e.message);
-        // Use default 'Guest' if can't fetch name
-      }
-      
-      // Backend requires user_name and user_phone
-      formData.append('user_name', userName);
-      formData.append('user_phone', userPhone);
-      
       if (caption && caption.trim()) {
         formData.append('caption', caption.trim());
       }
@@ -1409,8 +1387,7 @@ const PhotoUploadScreen = ({ navigation }) => {
         caption: caption || '(empty)',
         tags: selectedTags.length,
         tagsList: selectedTags,
-        userName,
-        userPhone: userPhone ? `${userPhone.substring(0, 3)}***` : 'missing'
+        authenticated: true
       });
 
       console.log('[PhotoUpload] Calling uploadPhoto API...');
@@ -1875,7 +1852,7 @@ const SettingsScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               // Clear user data
-              await AsyncStorage.multiRemove(['user_phone', 'user_role']);
+              await AsyncStorage.multiRemove(['user_phone', 'user_role', 'guest_token']);
               // Navigate to login
               navigation.reset({
                 index: 0,
